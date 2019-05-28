@@ -9,14 +9,14 @@ from advntr.models import load_unique_vntrs_data
 
 highest_fs = 0
 lowest_p = 1e10
-VNTR_genotypes_dir = 'gtex_genotypes/'
+VNTR_genotypes_dir = '../gtex_genotypes/'
 #VNTR_genotypes_dir = '/pedigree2/projects/adVNTR/gtex_genotypes/'
-wgs_id_gtex_id_file = 'GTEX_sample_id_conversion.txt'
+wgs_id_gtex_id_file = '../GTEX_sample_id_conversion.txt'
 vntr_models_dir = '/pedigree2/projects/adVNTR/vntr_data/hg38_selected_VNTRs_Illumina.db'
 
-snp_file = 'files/phg000830.v1.GTEx_WGS.genotype-calls-vcf.c1/subset'
-snp_file = 'files/phg000830.v1.GTEx_WGS.genotype-calls-vcf.c1/subset_100kb'
-#snp_file = 'files/phg000830.v1.GTEx_WGS.genotype-calls-vcf.c1/652Ind_filtered_biallelic_snps_0.05maf'
+snp_file = '../files/phg000830.v1.GTEx_WGS.genotype-calls-vcf.c1/subset'
+snp_file = '../files/phg000830.v1.GTEx_WGS.genotype-calls-vcf.c1/subset_100kb'
+#snp_file = '../files/phg000830.v1.GTEx_WGS.genotype-calls-vcf.c1/652Ind_filtered_biallelic_snps_0.05maf'
 
 ref_vntrs = load_unique_vntrs_data(vntr_models_dir)
 reference_vntrs = {}
