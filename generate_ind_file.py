@@ -7,7 +7,8 @@ Usage: python generate_ind_file.py sample_file > ind_file
 import sys
 
 try:
-    sampfile = sys.argv[1]
+    indfile = sys.argv[1]
+    sampfile = sys.argv[2]
 except:
     sys.stderr.write(__doc__)
     sys.exit(1)
@@ -30,16 +31,18 @@ with open(sampfile, "r") as f:
             sample = items[1]
             samples.append(sample)
             pop = int(items[5])
-            sex = 'F' if int(items[3]) == 1 else 'M'
+            sex = 'M' if int(items[3]) == 1 else 'F'
             sample_to_pop[sample] = num_to_pop[int(pop)]
             sample_to_gender[sample] = sex
         except IndexError: continue
 
-for sampid in samples:
-#    items = line.strip().split()
-#    sampid = "-".join(items[0].split("-")[0:2])
-    pop = sample_to_pop.get(sampid, "NA")
-    sex = sample_to_gender.get(sampid, "NA")
-    items = [sampid, sex, pop]
-    sys.stdout.write("\t".join(items)+"\n")
+with open(indfile, "r") as f:
+    for line in f:
+        items = line.strip().split()
+        sampid = "-".join(items[0].split("-")[0:2])
+        pop = sample_to_pop.get(sampid, "NA")
+        items[2] = pop
+        sex = sample_to_gender.get(sampid, "NA")
+        items[1] = sex
+        sys.stdout.write("\t".join(items)+"\n")
 
