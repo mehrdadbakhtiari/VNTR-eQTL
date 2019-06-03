@@ -4,6 +4,9 @@ import operator
 import pandas as pd
 import numpy as np
 
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+
 from advntr.models import load_unique_vntrs_data
 
 from load_confounders import load_peer_factors, load_population_pcs
@@ -235,12 +238,19 @@ def run_anova_for_vntr(df, genotypes, vntr_id = 527655, tissue_name = 'Blood Ves
 #        print('len(group) != 3')
 #        exit(0)
 
+    anova_target = gene_name
+    anova_target = 'residuals'
+
+    # find residuals
+    confoudners_str = ' + '.join(pop_pcs + peer_factors)
+    confounders_lm = ols('%s ~ %s' % (gene_name, confoudners_str), data=temp).fit()
+    temp['residuals'] = confounders_lm.resid
+#    print(temp)
+
     temp['const'] = 1
     print(temp.shape)
-    import statsmodels.api as sm
-    from statsmodels.formula.api import ols
 #    print(vntr_genotype_title)
-    vntr_mod = ols('%s ~ %s' % (gene_name, vntr_genotype_title), data=temp).fit()
+    vntr_mod = ols('%s ~ %s' % (anova_target, vntr_genotype_title), data=temp).fit()
 #    vntr_mod = sm.OLS(temp[gene_name].astype(float), temp[[vntr_genotype_title, 'const']].astype(float)).fit()
 #    print(vntr_mod.summary())
     print('summary printed for ', vntr_mod.fvalue, vntr_mod.f_pvalue)
@@ -253,15 +263,24 @@ def run_anova_for_vntr(df, genotypes, vntr_id = 527655, tissue_name = 'Blood Ves
         print('not a significant VNTR for sure')
         return
 
+    # add rows for each SNP genotype
+    snp_map, snps = load_snp_file(vntr_id)
+    print('snps are loaded')
+    snp_titles = []
+    for i in range(len(snps)):
+        snp_column = [snp_map[individual_id][snps[i]] for individual_id in temp.index]
+        snp_titles.append('SNP_%s' % snps[i].split('_')[1])
+        temp[snp_titles[-1]] = snp_column
+
     best_snp_p = 1e9
     best_snp_f = 0
     best_snp = None
 
     for snp_id in snp_titles:
-        snp_mod = ols('%s ~ %s' % (gene_name, snp_id), data=temp).fit()
-        snp_mod = sm.OLS(temp[gene_name], temp[[snp_id, 'const']]).fit()
-        snp_vntr_lm = ols('%s ~ %s + %s' % (gene_name, snp_id, vntr_genotype_title), data=temp).fit()
-        snp_vntr_lm = sm.OLS(temp[gene_name], temp[[snp_id, vntr_genotype_title, 'const']]).fit()
+        snp_mod = ols('%s ~ %s' % (anova_target, snp_id), data=temp).fit()
+        snp_mod = sm.OLS(temp[anova_target], temp[[snp_id, 'const']]).fit()
+        snp_vntr_lm = ols('%s ~ %s + %s' % (anova_target, snp_id, vntr_genotype_title), data=temp).fit()
+        snp_vntr_lm = sm.OLS(temp[anova_target], temp[[snp_id, vntr_genotype_title, 'const']]).fit()
 
         # f-value and p-value of adding VNTR to SNP linear model
         vntr_contribution_result = snp_vntr_lm.compare_f_test(snp_mod)[0:2]
