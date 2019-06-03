@@ -144,8 +144,10 @@ def run_anova():
     tissue_rpkm_file = rpkm_directory + tissue_name + '.rpkm'
     df = pd.read_csv(tissue_rpkm_file, delimiter='\t', header=1)
     run_anova_for_vntr(df, genotypes, 111235)
-    exit(0)
+#    exit(0)
     for vntr_id, number_of_genotypes in vntr_genotypes:
+        if reference_vntrs[vntr_id].chromosome[3:] == 'Y':
+            continue
         if number_of_genotypes != 3:
             continue
         run_anova_for_vntr(df, genotypes, vntr_id, tissue_name)
@@ -186,22 +188,17 @@ def run_anova_for_vntr(df, genotypes, vntr_id = 527655, tissue_name = 'Blood Ves
 #    print(gene_df.columns)
 #    print('----')
 
-    # add rows for each SNP genotype
-    snp_map, snps = load_snp_file(vntr_id)
-    print('snps are loaded')
-    snp_titles = []
-    print('is it 2? ', gene_df.shape[0])
-    for i in range(0, len(snps)):
-#        print('add row %s' % (i+2))
-        snp_genotype_row = []
-        for j in range(1, len(gene_df.columns)):
-            individual_id = gene_df.columns[j]
-            snp_genotype_row.append(snp_map[individual_id][snps[i]])
-        snp_titles.append('SNP_%s' % snps[i].split('_')[1])
-        gene_df.loc[i+2] = [snp_titles[-1]] + snp_genotype_row
+#    print('is it 2? ', gene_df.shape[0])
+#    for i in range(0, len(snps)):
+#        snp_genotype_row = []
+#        for j in range(1, len(gene_df.columns)):
+#            individual_id = gene_df.columns[j]
+#            snp_genotype_row.append(snp_map[individual_id][snps[i]])
+#        snp_titles.append('SNP_%s' % snps[i].split('_')[1])
+#        gene_df.loc[i+2] = [snp_titles[-1]] + snp_genotype_row
 
     # add a row for each peer factor
-    start_row = 2 + len(snps)
+    start_row = 2
     peer_factor_map, peer_factors = load_peer_factors(tissue_name)
     for i in range(0, len(peer_factors)):
         peer_row = []
@@ -210,9 +207,8 @@ def run_anova_for_vntr(df, genotypes, vntr_id = 527655, tissue_name = 'Blood Ves
             peer_row.append(peer_factor_map[individual_id][peer_factors[i]])
         gene_df.loc[i+start_row] = [peer_factors[i]] + peer_row
 
-    print(gene_df)
     # add a row for each population pc
-    start_row = 2 + len(snps) + len(peer_factors)
+    start_row = 2 + len(peer_factors)
     pop_pc_map, pop_pcs = load_population_pcs()
     for i in range(0, len(pop_pcs)):
         pop_row = []
@@ -225,8 +221,7 @@ def run_anova_for_vntr(df, genotypes, vntr_id = 527655, tissue_name = 'Blood Ves
         gene_df.loc[i+start_row] = [pop_pcs[i]] + pop_row
 
     temp = gene_df.set_index('Description').transpose()
-#    print(temp)
-    # temp:
+    # temp: (except SNPs that will be added later)
     # Description   gene_name   vntr_genotype_title SNP1    SNP2    ... SNPn    Peer1   Peer2   PopPC1  PopPC2
     # GTEX-QWETY    0.6         2.5                 2       1       ... 1       0.5     0.6     0.4     0.8
 
