@@ -7,6 +7,9 @@ import pylab as PL
 import pandas as pd
 
 
+result_dir = 'PEER_results/'
+
+
 def plot_Alpha(Alpha, color="blue"):
     PL.plot(1.0 / Alpha,lw=4, color=color)
     min_a,max_a = (1.0/Alpha).min(), (1.0/Alpha).max()
@@ -55,10 +58,11 @@ def compute_peer_factors(tissue_name='Blood Vessel'):
     print "Plotted factor relevance"
 
     ids = list(df.index)
-    with open('peer_factors_%s_%s' % (tissue_name, K), 'w') as outfile:
+    peer_result_file = result_dir + 'peer_factors_%s_%s' % (tissue_name, K)
+    with open(peer_result_file, 'w') as outfile:
         for i in range(len(X)):
             individual_id = ids[i]
-            individual_factors = '\t'.join([str(e) for e in factors[i]])
+            individual_factors = '\t'.join([str(e) for e in X[i]])
             outfile.write('%s\t%s\n' % (individual_id, individual_factors))
     return X
 
