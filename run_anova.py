@@ -225,6 +225,10 @@ def run_anova_for_vntr(df, genotypes, vntr_id = 527655, tissue_name = 'Blood Ves
     # Description   gene_name   vntr_genotype_title SNP1    SNP2    ... SNPn    Peer1   Peer2   PopPC1  PopPC2
     # GTEX-QWETY    0.6         2.5                 2       1       ... 1       0.5     0.6     0.4     0.8
 
+    if (np.median(temp[gene_name]) == 0):
+        # gene is not expressed
+        return
+
     groups = [list(temp.loc[temp['%s' % vntr_genotype_title] == repeat_count]['%s' % gene_name]) for repeat_count in found_genotypes]
 #    print("groups: ", len(groups))
 #    for e in groups:
