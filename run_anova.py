@@ -124,14 +124,24 @@ def load_snp_file(vntr_id):
             snp_index = i - 6
             snp_id = all_snps[snp_index]
             snp_chr, snp_pos = snp_id.split('_')[0:2]
-            if True or snp_chr == '10' and 104629210 - 100000 < int(snp_pos) < 104661655 + 100000:
-                if line_number == 0:
-                    snps.append(snp_id)
-                alleles = line[6+2*snp_index], line[6+2*snp_index + 1]
-                alleles = [e == ancestral[snp_id] for e in alleles]
-                result[individual_id][snp_id] = sum(alleles)
+            if line_number == 0:
+                snps.append(snp_id)
+            alleles = line[6+2*snp_index], line[6+2*snp_index + 1]
+            alleles = [e == ancestral[snp_id] for e in alleles]
+            result[individual_id][snp_id] = sum(alleles)
 
     return result, snps
+
+
+def add_tissue(result_dict, vntr_id, tissue_name):
+    if vntr_id not in result_dict.keys():
+        result_dict[vntr_id] = set([])
+    result_dict[vntr_id].add(tissue_name.replace(' ', '-'))
+
+
+def get_caviar_zscore(linear_model, variant_title):
+    zscore = linear_model.params[variant_title] / linear_model.bse[variant_title]
+    return zscore
 
 
 def run_anova():
