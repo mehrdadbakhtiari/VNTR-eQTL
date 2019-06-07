@@ -1,6 +1,8 @@
 import matplotlib
 matplotlib.use('Agg')
 
+import os
+
 import peer
 import scipy as SP
 import pylab as PL
@@ -20,15 +22,20 @@ def plot_Alpha(Alpha, color="blue"):
 
 def compute_peer_factors(tissue_name='Blood Vessel'):
     tissue_rpkm_file = '../Expression_by_Tissue/%s.rpkm' % tissue_name
+    K = 15
+    peer_result_file = result_dir + 'peer_factors_%s_%s' % (tissue_name, K)
+    if os.path.exists(peer_result_file):
+        return
 #    y = SP.loadtxt(tissue_rpkm_file, delimiter="\t")
 #    print(y)
     df = pd.read_csv(tissue_rpkm_file, delimiter='\t', header=1)
     df = df.drop(columns=['Name'])
+    if len(df.columns) < K + 1:
+        return
     df.set_index('Description', inplace=True)
     df = df.transpose()
 #    print(df)
 #    print(df.values)
-    K = 15
     Nmax_iterations = 100
     Nmax_iterations = 3
     model = peer.PEER()
@@ -53,12 +60,11 @@ def compute_peer_factors(tissue_name='Blood Vessel'):
     Yc = model.getResiduals()
 
     # plot variance of factors - in this case, we expect a natural elbow where there are 5 active factors, as 5 were simulated
-    plot_Alpha(Alpha)
-    PL.savefig("demo_simple.pdf")
+#    plot_Alpha(Alpha)
+#    PL.savefig("demo_simple.pdf")
     print "Plotted factor relevance"
 
     ids = list(df.index)
-    peer_result_file = result_dir + 'peer_factors_%s_%s' % (tissue_name, K)
     with open(peer_result_file, 'w') as outfile:
         for i in range(len(X)):
             individual_id = ids[i]
