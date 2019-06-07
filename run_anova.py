@@ -160,21 +160,41 @@ def get_caviar_ld_matrix(df, variant_titles):
     return pd.DataFrame(result, columns=variant_titles, index=variant_titles)
 
 
+def lookfor (x, p):
+    """look for occurence of x in frame column p and output now numb, ID and score"""
+    for row in range(0,len(p.index)):
+        if x in p.values[row][0]:
+            top = p.values[row][0]
+            score = p.values[row][2]
+            return(row, top, score)
+
+
 def run_caviar(caviar_variants, caviar_zscores, caviar_ld_matrix, tissue_name, vntr_id):
-    rank = 0
+    rank = 1e10
 
     tissue_name = tissue_name.replace(' ', '-')
     temp_dir = caviar_result_dir + '%s/%s/' % (tissue_name, vntr_id)
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)
-    ld_file = temp_dir+'/%s_LD' % tissue_name
-    z_file = temp_dir+'/%s_Z' % tissue_name
+    ld_file = temp_dir + '/%s_LD' % tissue_name
+    z_file = temp_dir + '/%s_Z' % tissue_name
+    caviar_output = temp_dir + 'caviar'
     caviar_ld_matrix.to_csv(ld_file, sep='\t', header=None, index=None)
     with open(z_file, 'w') as outfile:
         for i in range(len(caviar_variants)):
             outfile.write('%s\t%s\n' % (caviar_variants[i], caviar_zscores[i]))
-    caviar_cmd = "CAVIAR -l %s -z %s -o %s/caviar -c 1 -f 1 > %s"%(ld_file, z_file, temp_dir, temp_dir+"log")
+    caviar_cmd = "CAVIAR -l %s -z %s -o %s -c 1 -f 1 > %s" % (ld_file, z_file, caviar_output, temp_dir+"log")
     os.system(caviar_cmd)
+
+    caviar_post_file = caviar_output + '_post'
+    if not os.path.exists(caviar_post_file):
+        print('caviar didnt produce posterior probability file')
+    else:
+        post = pd.read_csv(caviar_post_file, sep="\t", header=0)
+        post = post.sort_values(post.columns[2], ascending=False)
+        post = post.reset_index(drop=True)
+        I, topvntr, top_vntr_score = lookfor('%s' % vntr_id, post)
+        rank = I + 1
 
     return rank
 
@@ -211,8 +231,6 @@ def run_anova():
             if reference_vntrs[vntr_id].chromosome[3:] == 'Y':
                 continue
             if number_of_genotypes <= 1:
-                continue
-            if vntr_id != 111235:
                 continue
             run_anova_for_vntr(df, genotypes, vntr_id, tissue_name)
 #            exit(0)
