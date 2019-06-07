@@ -39,6 +39,8 @@ gene_locations_obj = GeneLocations()
 
 rpkm_directory = '../Expression_by_Tissue/'
 
+caviar_result_dir = 'caviar_inputs/'
+
 ref_vntrs = load_unique_vntrs_data(vntr_models_dir)
 reference_vntrs = {}
 for ref_vntr in ref_vntrs:
@@ -143,6 +145,38 @@ def get_caviar_zscore(linear_model, variant_title):
     zscore = linear_model.params[variant_title] / linear_model.bse[variant_title]
     return zscore
 
+
+def get_caviar_ld_matrix(df, variant_titles):
+    result = []
+    for i, v1 in enumerate(variant_titles):
+        result.append([])
+        for v2 in variant_titles:
+            X = df[v1].replace('None', np.nan).astype(float)
+            Y = df[v2].replace('None', np.nan).astype(float)
+            if X.corr(Y) is np.nan:
+                result[i].append(0.0)
+            else:
+                result[i].append(X.corr(Y))
+    return pd.DataFrame(result, columns=variant_titles, index=variant_titles)
+
+
+def run_caviar(caviar_variants, caviar_zscores, caviar_ld_matrix, tissue_name, vntr_id):
+    rank = 0
+
+    tissue_name = tissue_name.replace(' ', '-')
+    temp_dir = caviar_result_dir + '%s/%s/' % (tissue_name, vntr_id)
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir)
+    ld_file = temp_dir+'/%s_LD' % tissue_name
+    z_file = temp_dir+'/%s_Z' % tissue_name
+    caviar_ld_matrix.to_csv(ld_file, sep='\t', header=None, index=None)
+    with open(z_file, 'w') as outfile:
+        for i in range(len(caviar_variants)):
+            outfile.write('%s\t%s\n' % (caviar_variants[i], caviar_zscores[i]))
+    caviar_cmd = "CAVIAR -l %s -z %s -o %s/caviar -c 1 -f 1 > %s"%(ld_file, z_file, temp_dir, temp_dir+"log")
+    os.system(caviar_cmd)
+
+    return rank
 
 def run_anova():
     genotypes = load_individual_genotypes()
@@ -339,8 +373,15 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
         if vntr_contribution_result[1] > 0.05 and counter < 100:
             beat_100 = False
 
-        anova_results = sm.stats.anova_lm(snp_mod, snp_vntr_lm)
+        if counter < 100:
+            caviar_variants.append(snp_id)
+            caviar_zscores.append(get_caviar_zscore(snp_mod, snp_id))
+
+#        anova_results = sm.stats.anova_lm(snp_mod, snp_vntr_lm)
         counter += 1
+
+    caviar_ld_matrix = get_caviar_ld_matrix(temp, caviar_variants)
+    causality_rank = run_caviar(caviar_variants, caviar_zscores, caviar_ld_matrix, tissue_name, vntr_id)
 
     significant_vntr = vntr_mod.f_pvalue < 0.05
     print('significant_vntr: ', significant_vntr)
