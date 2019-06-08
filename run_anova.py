@@ -20,6 +20,8 @@ beat_top_10_snps_vntrs = {}
 beat_top_20_snps_vntrs = {}
 beat_top_100_snps_vntrs = {}
 best_pvalues = {}
+caviar_top_5 = {}
+caviar_top_1 = {}
 
 min_individuals_in_group = 4
 
@@ -169,7 +171,7 @@ def lookfor (x, p):
             return(row, top, score)
 
 
-def run_caviar(caviar_variants, caviar_zscores, caviar_ld_matrix, tissue_name, vntr_id):
+def run_caviar(caviar_variants, caviar_zscores, gene_df, tissue_name, vntr_id):
     rank = 1e10
 
     tissue_name = tissue_name.replace(' ', '-')
@@ -179,14 +181,16 @@ def run_caviar(caviar_variants, caviar_zscores, caviar_ld_matrix, tissue_name, v
     ld_file = temp_dir + '/%s_LD' % tissue_name
     z_file = temp_dir + '/%s_Z' % tissue_name
     caviar_output = temp_dir + 'caviar'
-    caviar_ld_matrix.to_csv(ld_file, sep='\t', header=None, index=None)
-    with open(z_file, 'w') as outfile:
-        for i in range(len(caviar_variants)):
-            outfile.write('%s\t%s\n' % (caviar_variants[i], caviar_zscores[i]))
-    caviar_cmd = "CAVIAR -l %s -z %s -o %s -c 1 -f 1 > %s" % (ld_file, z_file, caviar_output, temp_dir+"log")
-    os.system(caviar_cmd)
-
     caviar_post_file = caviar_output + '_post'
+    if not os.path.exists(caviar_post_file):
+        caviar_ld_matrix = get_caviar_ld_matrix(gene_df, caviar_variants)
+        caviar_ld_matrix.to_csv(ld_file, sep='\t', header=None, index=None)
+        with open(z_file, 'w') as outfile:
+            for i in range(len(caviar_variants)):
+                outfile.write('%s\t%s\n' % (caviar_variants[i], caviar_zscores[i]))
+        caviar_cmd = "CAVIAR -l %s -z %s -o %s -c 1 -f 1 > %s" % (ld_file, z_file, caviar_output, temp_dir+"log")
+        os.system(caviar_cmd)
+
     if not os.path.exists(caviar_post_file):
         print('caviar didnt produce posterior probability file')
     else:
@@ -222,15 +226,22 @@ def run_anova():
     tissue_names = [pf.split('/')[-1][13:-3] for pf in peer_files]
     print(tissue_names)
 
+    with open('important_vntr_ids.txt') as infile:
+        lines = infile.readlines()
+    important_vntr_ids = set([int(line.strip()) for line in lines if line.strip() != ''])
+    print(important_vntr_ids)
+
     tissue_name = 'Blood Vessel'
     for tissue_name in tissue_names:
-#        tissue_name = 'Skin'
+        tissue_name = 'Heart'
         tissue_rpkm_file = rpkm_directory + tissue_name + '.rpkm'
         df = pd.read_csv(tissue_rpkm_file, delimiter='\t', header=1)
         for vntr_id, number_of_genotypes in vntr_genotypes:
             if reference_vntrs[vntr_id].chromosome[3:] == 'Y':
                 continue
             if number_of_genotypes <= 1:
+                continue
+            if vntr_id not in important_vntr_ids:
                 continue
             run_anova_for_vntr(df, genotypes, vntr_id, tissue_name)
 #            exit(0)
@@ -398,8 +409,13 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
 #        anova_results = sm.stats.anova_lm(snp_mod, snp_vntr_lm)
         counter += 1
 
-    caviar_ld_matrix = get_caviar_ld_matrix(temp, caviar_variants)
-    causality_rank = run_caviar(caviar_variants, caviar_zscores, caviar_ld_matrix, tissue_name, vntr_id)
+    causality_rank = run_caviar(caviar_variants, caviar_zscores, temp, tissue_name, vntr_id)
+    global caviar_top_5
+    global caviar_top_1
+    if causality_rank <= 5:
+        add_tissue(caviar_top_5, vntr_id, tissue_name)
+    if causality_rank == 1:
+        add_tissue(caviar_top_1, vntr_id, tissue_name)
 
     significant_vntr = vntr_mod.f_pvalue < 0.05
     print('significant_vntr: ', significant_vntr)
@@ -457,6 +473,8 @@ if __name__ == '__main__':
     print('beat_10: %s:' % len(beat_top_10_snps_vntrs.keys()), beat_top_10_snps_vntrs)
     print('beat_20: %s:' % len(beat_top_20_snps_vntrs.keys()), beat_top_20_snps_vntrs)
     print('beat_100: %s:' % len(beat_top_100_snps_vntrs.keys()), beat_top_100_snps_vntrs)
+    print('caviar_top_1: %s: ' % len(caviar_top_1.keys()))
+    print('caviar_top_5: %s: ' % len(caviar_top_5.keys()))
 
     all_vntrs = sorted(list(set(top_p_value_vntrs.keys() + beat_top_10_snps_vntrs.keys() + beat_top_20_snps_vntrs.keys() + beat_top_100_snps_vntrs.keys())))
     for vntr_id in all_vntrs:
