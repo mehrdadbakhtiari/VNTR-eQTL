@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import seaborn.apionly as sns
 import numpy as np
+from math import log10
 
 
 def plot_expression_genotype_correlation():
@@ -31,8 +32,26 @@ def plot_expression_genotype_correlation():
 
 
 def plot_variant_pvalues():
-    pass
+    fig = plt.figure(figsize=(6, 2))
+    ax = fig.add_subplot(111)
+
+    gene_name = 'AS3MT'
+
+    data = [0.0001, 0.000005, 0.001, 0.01, 0.001, 0.0001, 0.001, 0.0001]
+    data = [-log10(e) for e in data]
+    x = [i for i in range(len(data))]
+    ax.scatter(x, data, marker='.', c='gray')
+    vntr_x = 4.5
+    vntr_p_value = -log10(0.000000000001)
+    ax.scatter(vntr_x, vntr_p_value, marker='*', c='r')
+    # ax.set_xlabel('Genomic location')
+    ax.set_ylabel('-log10 P-value')
+    fig.savefig('pvalues_%s.pdf' % gene_name)
+    plt.cla()
+    plt.clf()
+    plt.close()
 
 
 if __name__ == '__main__':
-    plot_expression_genotype_correlation()
+    # plot_expression_genotype_correlation()
+    plot_variant_pvalues()
