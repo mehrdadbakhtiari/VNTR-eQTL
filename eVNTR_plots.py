@@ -1,7 +1,18 @@
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn.apionly as sns
 import numpy as np
+import pandas as pd
 from math import log10
+
+from advntr.models import load_unique_vntrs_data
+
+vntr_models_dir = '/home/mehrdad/workspace/adVNTR/vntr_data/hg38_selected_VNTRs_Illumina.db'
+ref_vntrs = load_unique_vntrs_data(vntr_models_dir)
+reference_vntrs = {}
+for ref_vntr in ref_vntrs:
+        reference_vntrs[ref_vntr.id] = ref_vntr
 
 
 def plot_expression_genotype_correlation():
@@ -31,6 +42,39 @@ def plot_expression_genotype_correlation():
     plt.close()
 
 
+def plot_variant_caviar_scores(vntr_id, tissue_name):
+    caviar_post_file = 'caviar_inputs/%s/%s/caviar_post' % (tissue_name.replace(' ', '-'), vntr_id)
+    post = pd.read_csv(caviar_post_file, sep="\t", header=0)
+    post = post.sort_values(post.columns[2], ascending=False)
+    post = post.reset_index(drop=True)
+
+    vntr_x = reference_vntrs[vntr_id].start_point
+    vntr_x = 104629254 # I should read from hg19 :((
+    vntr_y = 0
+    x = []
+    y = []
+    for row in range(0,len(post.index)):
+        if '%s' % vntr_id in post.values[row][0]:
+            vntr_y = float(post.values[row][2])
+        else:
+            x.append(int(post.values[row][0].split('_')[1]))
+            y.append(post.values[row][2])
+    gene_name = reference_vntrs[vntr_id].gene_name
+
+    if vntr_id != 111235:
+        vntr_x = sum(x) / len(x)
+
+    fig = plt.figure(figsize=(6, 2))
+    ax = fig.add_subplot(111)
+    ax.scatter(x, y, marker='.', c='gray')
+    ax.scatter(vntr_x, vntr_y, marker='*', c='r')
+    ax.set_ylabel('Causality probability')
+    fig.savefig('caviar_%s_%s.pdf' % (gene_name, tissue_name))
+    plt.cla()
+    plt.clf()
+    plt.close()
+
+
 def plot_variant_pvalues():
     fig = plt.figure(figsize=(6, 2))
     ax = fig.add_subplot(111)
@@ -54,4 +98,7 @@ def plot_variant_pvalues():
 
 if __name__ == '__main__':
     # plot_expression_genotype_correlation()
-    plot_variant_pvalues()
+    # plot_variant_pvalues()
+    plot_variant_caviar_scores(111235, 'Esophagus')
+    plot_variant_caviar_scores(331737, 'Esophagus')
+
