@@ -18,13 +18,17 @@ for ref_vntr in ref_vntrs:
         reference_vntrs[ref_vntr.id] = ref_vntr
 
 
-def plot_expression_genotype_correlation():
-    gene_name = 'AS3MT'
-    tissue_name = 'Blood Vessel'
-    data = [[2.03838086128, 2.7370822429699997, 2.05135184526, 1.5914614200600001, 0.958451598883, 1.1516859531399999, 1.3514041900600002, 1.74997264147, 2.07785964012, 0.278437435627],
-    [2.7890409231200004, 2.66182696819, 2.8365943431900003, 1.85346615314, 3.58080442746, 4.039058208469999, 2.99621518453, 2.16904437542, 1.97231662273, 1.4924068749000001, 2.8461830616, 3.74974346161, 4.124842882159999, 3.01081669331, 6.583733081819999, 2.89373207092, 2.00292903185, 1.64222568274, 1.8419418335, 3.3163380622900003, 2.60120218992, 1.2146719694099999, 1.8719456791900002, 2.87023258209, 4.13667408625, 4.193371772769999, 2.12403798103, 3.3078730106400003, 1.65636360645, 4.9908556938199995, 2.46760606766, 1.40581941605, 1.6427392959600002, 2.5626500845, 2.07668371995, 3.36892787615],
-    [3.32425562541, 3.5104527473400005, 3.08298095067, 4.673421621319999, 4.17712974548, 3.19682518641, 4.23930692673, 3.14745998383, 3.64102172852, 2.1144301891299997, 4.476975917819999, 4.137458801269999, 3.69442009926, 3.72947589556, 3.40179014206, 4.59486802419, 5.2096545696300005, 4.51752734184, 2.93920099735, 4.5821495056199995, 4.823669274649999, 3.88390767574, 1.60192894936, 3.4485193491, 3.98949337006, 1.9181122779799997, 2.9278344710699997],]
-    labels = ['2', '2.5', '3']
+def plot_expression_genotype_correlation(vntr_id, tissue_name):
+    gene_name = reference_vntrs[vntr_id].gene_name
+    data_file = 'genotype_expression_correlation/%s/%s/correlation.txt' % (tissue_name, vntr_id)
+    with open(data_file) as infile:
+        lines = infile.readlines()
+    data = []
+    labels = []
+    for line in lines:
+        line = line.strip().split(' ')
+        labels.append(str(line[0]))
+        data.append([float(e) for e in line[1].split(',')])
 
     sns.set(style="whitegrid")
 
@@ -39,7 +43,7 @@ def plot_expression_genotype_correlation():
     ax.set_ylabel('Gene Expression')
     ax.set_title('Expression of %s in %s tissue' % (gene_name, tissue_name))
     ax.set_ylim(0)
-    fig.savefig('expression_%s.pdf' % gene_name)
+    fig.savefig('expression_%s_%s.pdf' % (gene_name, tissue_name))
     plt.cla()
     plt.clf()
     plt.close()
@@ -231,11 +235,12 @@ def plot_significant_vntrs_and_tissues():
 #GWAS result? correlation with traits? like hight
 
 if __name__ == '__main__':
-    # plot_expression_genotype_correlation()
-    plot_variant_pvalues(101865, 'Heart')
-    plot_variant_pvalues(331737, 'Heart')
-    plot_variant_caviar_scores(111235, 'Esophagus')
-    plot_variant_caviar_scores(331737, 'Esophagus')
+     plot_expression_genotype_correlation(331737, 'Lung')
+     plot_expression_genotype_correlation(331737, 'Esophagus')
+#    plot_variant_pvalues(101865, 'Heart')
+#    plot_variant_pvalues(331737, 'Heart')
+#    plot_variant_caviar_scores(111235, 'Esophagus')
+#    plot_variant_caviar_scores(331737, 'Esophagus')
 
     # plot_allele_count_distribution()
     # plot_vntr_polymorphic_rate_based_on_annotation()
