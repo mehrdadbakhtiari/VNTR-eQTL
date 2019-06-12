@@ -123,11 +123,62 @@ def plot_allele_count_distribution():
             #    print(genotyped_vntr_ids)
     vntr_genotypes = {_vntr_id: len(lengths) for _vntr_id, lengths in genotyped_vntr_ids.items() if len(lengths) != 0}
 
+    data = {}
+    for vntr_id, number_of_genotypes in vntr_genotypes.items():
+        number_of_genotypes = min(number_of_genotypes, 15)
+        annotation = reference_vntrs[vntr_id].annotation
+        if annotation not in ['UTR', 'Coding', 'Promoter']:
+            continue
+        if annotation not in data.keys():
+            data[annotation] = {}
+        if number_of_genotypes not in data[annotation].keys():
+            data[annotation][number_of_genotypes] = 0
+        data[annotation][number_of_genotypes] += 1
 
-    plt.hist(vntr_genotypes.values())
+    offset = -0.2
+    for key in data.keys():
+        plt.bar(np.array(data[key].keys()) + offset, data[key].values(), label=key, width=0.2)
+        offset += 0.2
+    plt.legend()
     plt.xlabel('Number of alleles')
     plt.ylabel('Number of VNTRs')
     plt.savefig('VNTR_genotype_allele_count.pdf')
+    plt.cla()
+    plt.clf()
+    plt.close()
+
+
+def plot_vntr_polymorphic_rate_based_on_annotation():
+    genotypes = load_individual_genotypes(reference_vntrs)
+    genotyped_vntr_ids = {_id: set() for _id in range(1000000)}
+
+    for individual_id, result_map in genotypes.items():
+        for genotyped_vntr, avg_length in result_map.items():
+            if avg_length == 'None' or avg_length is None:
+                continue
+            genotyped_vntr_ids[genotyped_vntr].add(avg_length)
+            #    print(genotyped_vntr_ids)
+    vntr_genotypes = {_vntr_id: len(lengths) for _vntr_id, lengths in genotyped_vntr_ids.items() if len(lengths) != 0}
+
+    poly = {}
+    total = {}
+    for vntr_id, number_of_genotypes in vntr_genotypes.items():
+        annotation = reference_vntrs[vntr_id].annotation
+        if annotation not in ['UTR', 'Coding', 'Promoter']:
+            continue
+        if annotation not in total.keys():
+            total[annotation] = 0
+            poly[annotation] = 0
+        if number_of_genotypes > 1:
+            poly[annotation] += 1
+        total[annotation] += 1
+
+    rate = {key: float(poly[key]) / total[key] for key in poly.keys()}
+    plt.bar([0, 1, 2], rate.values(), width=0.5)
+    plt.xticks((0, 1, 2), [item for item in rate.keys()], size=12)
+    plt.xlabel('Annotation')
+    plt.ylabel('Rate of polymorphic VNTRs')
+    plt.savefig('polymorphic_vntrs.pdf')
     plt.cla()
     plt.clf()
     plt.close()
@@ -143,6 +194,7 @@ def plot_evntrs_and_number_of_tissues():
 
 
 def plot_evntrs_per_tissue():
+    # also show unique and non-unique eVNTRs separately (with filling or color of the box)
     plt.xlabel('Tissue name')
     plt.ylabel('Number of VNTR-eQTLs')
     # plt.savefig('eVNTR_uniqueness.pdf')
@@ -178,15 +230,6 @@ def plot_significant_vntrs_and_tissues():
 
 #GWAS result? correlation with traits? like hight
 
-def plot_vntr_polymorphic_rate_based_on_annotation():
-    plt.xlabel('Annotation')
-    plt.ylabel('Rate of polymorphic VNTRs')
-    plt.savefig('polymorphic_vntrs.pdf')
-    plt.cla()
-    plt.clf()
-    plt.close()
-
-
 if __name__ == '__main__':
     # plot_expression_genotype_correlation()
     plot_variant_pvalues(101865, 'Heart')
@@ -194,4 +237,5 @@ if __name__ == '__main__':
     plot_variant_caviar_scores(111235, 'Esophagus')
     plot_variant_caviar_scores(331737, 'Esophagus')
 
-    plot_allele_count_distribution()
+    # plot_allele_count_distribution()
+    # plot_vntr_polymorphic_rate_based_on_annotation()
