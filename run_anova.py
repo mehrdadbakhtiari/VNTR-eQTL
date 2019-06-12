@@ -37,16 +37,20 @@ snp_file = snp_directory + 'subset'
 snp_file = snp_directory + 'subset_100kb'
 original_snp_file = snp_directory + '652Ind_filtered_biallelic_snps_0.05maf'
 
-gene_locations_obj = GeneLocations()
+try:
+    gene_locations_obj = GeneLocations()
+except:
+    pass
 
 rpkm_directory = '../Expression_by_Tissue/'
 
 caviar_result_dir = 'caviar_inputs/'
 
-ref_vntrs = load_unique_vntrs_data(vntr_models_dir)
-reference_vntrs = {}
-for ref_vntr in ref_vntrs:
-    reference_vntrs[ref_vntr.id] = ref_vntr
+if __name__ == '__main__':
+    ref_vntrs = load_unique_vntrs_data(vntr_models_dir)
+    reference_vntrs = {}
+    for ref_vntr in ref_vntrs:
+        reference_vntrs[ref_vntr.id] = ref_vntr
 
 
 def get_average(lst):
@@ -63,7 +67,7 @@ def get_wgs_id_to_individual_id_map():
     return result
 
 
-def load_individual_genotypes():
+def load_individual_genotypes(reference_vntrs):
     res = {}
     # res['GTEX-QWERT'][527655] = 2.5
     wgs_id_to_gtex_id = get_wgs_id_to_individual_id_map()
@@ -202,8 +206,9 @@ def run_caviar(caviar_variants, caviar_zscores, gene_df, tissue_name, vntr_id):
 
     return rank
 
+
 def run_anova():
-    genotypes = load_individual_genotypes()
+    genotypes = load_individual_genotypes(reference_vntrs)
     genotyped_vntr_ids = {_id: set() for _id in range(1000000)}
     global best_pvalues
     best_pvalues = {_id: 1 for _id in range(1000000)}
