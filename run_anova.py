@@ -238,7 +238,6 @@ def run_anova():
 
     tissue_name = 'Blood Vessel'
     for tissue_name in tissue_names:
-        tissue_name = 'Heart'
         tissue_rpkm_file = rpkm_directory + tissue_name + '.rpkm'
         df = pd.read_csv(tissue_rpkm_file, delimiter='\t', header=1)
         for vntr_id, number_of_genotypes in vntr_genotypes:
@@ -246,8 +245,8 @@ def run_anova():
                 continue
             if number_of_genotypes <= 1:
                 continue
-            if vntr_id not in important_vntr_ids:
-                continue
+#            if vntr_id not in important_vntr_ids:
+#                continue
             run_anova_for_vntr(df, genotypes, vntr_id, tissue_name)
 #            exit(0)
 #        break
@@ -351,12 +350,23 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
 #    print(aov_table)
 
     print('DONE with OLS, starting ols for SNPs')
+
+    p_value_file = 'all_vntr_pvalues/%s/%s/pvalues.txt' % (tissue_name, vntr_id)
+    if not os.path.exists(os.path.dirname(p_value_file)):
+        os.makedirs(os.path.dirname(p_value_file))
+    with open(p_value_file, 'w') as outfile:
+        outfile.write('%s\n' % vntr_mod.f_pvalue)
+    return
+
     if vntr_mod.f_pvalue > 0.05:
         print('not a significant VNTR for sure')
         return
+
     global low_pvalue_vntrs
     add_tissue(low_pvalue_vntrs, vntr_id, tissue_name)
     best_pvalues[vntr_id] = min(best_pvalues[vntr_id], vntr_mod.f_pvalue)
+
+    variant_pvalues = [(vntr_genotype_title, vntr_mod.f_pvalue)]
 
     # add rows for each SNP genotype
     snp_map, snps = load_snp_file(vntr_id)
@@ -379,6 +389,14 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
         snp_mod = ols('%s ~ %s' % (anova_target, snp_id), data=temp).fit()
         snp_mod = sm.OLS(temp[anova_target], temp[[snp_id, 'const']]).fit()
         snp_linear_models.append((snp_mod.f_pvalue, snp_id, snp_mod))
+        variant_pvalues.append((snp_id, snp_mod.f_pvalue))
+
+    p_value_file = 'pvalues/%s/%s/pvalues.txt' % (tissue_name, vntr_id)
+    if not os.path.exists(os.path.dirname(p_value_file)):
+        os.makedirs(os.path.dirname(p_value_file))
+    with open(p_value_file, 'w') as outfile:
+        for vid, v_pvalue in variant_pvalues:
+            outfile.write('%s\t%s\n' % (vid, v_pvalue))
 
     beat_10 = True
     beat_20 = True
