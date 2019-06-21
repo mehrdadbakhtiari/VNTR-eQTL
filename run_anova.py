@@ -478,10 +478,15 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
             add_tissue(beat_top_100_snps_vntrs, vntr_id, tissue_name)
 #            beat_top_100_snps_vntrs.add(vntr_id)
 
-        for g in groups:
-            print(g)
-            if len(g) > 0:
-                print(get_average(g))
+        expression_correlation_file = 'genotype_expression_correlation/%s/%s/correlation.txt' % (tissue_name, vntr_id)
+        if not os.path.exists(os.path.dirname(expression_correlation_file)):
+            os.makedirs(os.path.dirname(expression_correlation_file))
+        with open(expression_correlation_file, 'w') as outfile:
+            for i, g in enumerate(groups):
+                outfile.write('%s %s\n' % (found_genotypes[i], ','.join([str(e) for e in g])))
+                print(g)
+                if len(g) > 0:
+                    print(get_average(g))
         print(vntr_id, gene_name)
 #        exit(0)
 
