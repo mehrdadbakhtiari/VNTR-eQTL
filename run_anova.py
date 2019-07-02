@@ -358,6 +358,13 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
         os.makedirs(os.path.dirname(p_value_file))
     with open(p_value_file, 'w') as outfile:
         outfile.write('%s\n' % vntr_mod.f_pvalue)
+
+    effect_size = get_caviar_zscore(vntr_mod, vntr_genotype_title)
+    effect_size_file = 'all_vntrs_zscore/%s/%s/Z.txt' % (tissue_name, vntr_id)
+    if not os.path.exists(os.path.dirname(effect_size_file)):
+        os.makedirs(os.path.dirname(effect_size_file))
+    with open(effect_size_file, 'w') as outfile:
+        outfile.write('%s\n' % effect_size)
     return
 
     if vntr_mod.f_pvalue > 0.05:
