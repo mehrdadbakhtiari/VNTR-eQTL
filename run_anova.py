@@ -67,7 +67,7 @@ def get_wgs_id_to_individual_id_map():
     return result
 
 
-def load_individual_genotypes(reference_vntrs):
+def load_individual_genotypes(reference_vntrs, average=True):
     res = {}
     # res['GTEX-QWERT'][527655] = 2.5
     wgs_id_to_gtex_id = get_wgs_id_to_individual_id_map()
@@ -88,7 +88,9 @@ def load_individual_genotypes(reference_vntrs):
                 _vntr_id = int(line)
             else:
                 if len(reference_vntrs[_vntr_id].pattern) >= 6:
-                    res[individual_id][_vntr_id] = get_average([float(e) for e in line.split('/')]) if line != 'None' else None
+                    avg_length = get_average([float(e) for e in line.split('/')]) if line != 'None' else None
+                    diploid_alleles = [float(e) for e in line.split('/')] if line != 'None' else (None, None)
+                    res[individual_id][_vntr_id] = avg_length if average else diploid_alleles
     
     return res
 
