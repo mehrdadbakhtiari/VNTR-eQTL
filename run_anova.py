@@ -209,9 +209,21 @@ def run_caviar(caviar_variants, caviar_zscores, gene_df, tissue_name, vntr_id):
     return rank
 
 
+def get_vntr_alleles(genotypes):
+    genotyped_vntr_ids = {_id: set() for _id in range(1000000)}
+    for individual_id, result_map in genotypes.items():
+        for genotyped_vntr, avg_length in result_map.items():
+            if avg_length == 'None' or avg_length is None:
+                continue
+            genotyped_vntr_ids[genotyped_vntr].add(avg_length)
+
+    vntr_genotypes = {_vntr_id: len(lengths) for _vntr_id, lengths in genotyped_vntr_ids.items() if len(lengths) != 0}
+    vntr_genotypes = sorted(vntr_genotypes.items(), key=operator.itemgetter(1), reverse=True)
+    return vntr_genotypes
+
+
 def run_anova():
     genotypes = load_individual_genotypes(reference_vntrs)
-    genotyped_vntr_ids = {_id: set() for _id in range(1000000)}
     global best_pvalues
     best_pvalues = {_id: 1 for _id in range(1000000)}
 #    global beat_top_100_snps_vntrs
@@ -219,14 +231,7 @@ def run_anova():
 #    beat_top_100_snps_vntrs = {_id: set() for _id in range(1000000)}
 #    top_p_value_vntrs = {_id: set() for _id in range(1000000)}
 
-    for individual_id, result_map in genotypes.items():
-        for genotyped_vntr, avg_length in result_map.items():
-            if avg_length == 'None' or avg_length is None:
-                continue
-            genotyped_vntr_ids[genotyped_vntr].add(avg_length)
-#    print(genotyped_vntr_ids)
-    vntr_genotypes = {_vntr_id: len(lengths) for _vntr_id, lengths in genotyped_vntr_ids.items() if len(lengths) != 0}
-    vntr_genotypes = sorted(vntr_genotypes.items(), key=operator.itemgetter(1), reverse=True)
+    vntr_genotypes = get_vntr_alleles(genotypes)
     print(vntr_genotypes[0:10], vntr_genotypes[-1])
 
     peer_files = glob.glob('PEER_results/*')
@@ -252,6 +257,47 @@ def run_anova():
             run_anova_for_vntr(df, genotypes, vntr_id, tissue_name)
 #            exit(0)
 #        break
+
+def load_bjarni_genotypes():
+#    # res['BJARNI_0'][527655] = 2.5
+    genotype_file = 'Bjarni/toMehrdad/VNTR_genotypes'
+#    with open(genotype_file) as infile:
+#        lines = genotype.readlines()
+#        lines = [line.strip().split() for line in lines]
+#    for i in range(len(lines)):
+#        individual_id = 'Bjarni_%s' % i
+#        vntr_id = lines[i][0]
+#        genotypes[individual_id] = {}
+#        for j in range(1, len(lines[0])):
+#            genotypes[individual_id][vntr_id] = lines[i][j]
+#    return genotypes
+    df = pd.read_csv(genotype_file, delimiter=' ', header=None)
+    df = df.drop(columns=[1, 2, 3])
+    df = df.set_index([0])
+    df.columns = ['Bjarni_%s' % i for i in range(len(df.columns))]
+    df = df.transpose()
+    return df
+
+def run_anova_for_bjarni():
+    genotypes_df = load_bjarni_genotypes()
+    vntr_genotypes = get_vntr_alleles(genotypes)
+    expression_file = 'Bjarni/toMehrdad/eMat_cropped'
+    df = pd.read_csv(expression_file, delimiter=' ', header=None)
+    df = df.drop(columns=[1, 2, 3])
+    df = df.set_index([0])
+    df.columns = ['Bjarni_%s' % i for i in range(len(df.columns))]
+    df = df.transpose()
+#    for vntr_id, number_of_alleles in vntr_genotypes:
+    for vntr_id in df.columns:
+        if reference_vntrs[vntr_id].chromosome[3:] == 'Y':
+            continue
+        number_of_alleles = set([e for e in genotype_df.columns if e not in ['None', None]])
+        if number_of_alleles <= 1:
+            continue
+        gene_df = df.drop(columns=list([e for e in df.columns if e != vntr_id]))
+        print(vntr_id, number_of_alleles)
+        continue
+        run_anova_for_vntr(df, genotypes, vntr_id)
 
 
 def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'):
@@ -501,6 +547,8 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
 
 
 if __name__ == '__main__':
+    run_anova_for_bjarni()
+    exit(0)
     run_anova()
     print(highest_fs)
     print(lowest_p)
