@@ -272,15 +272,19 @@ def load_bjarni_genotypes():
 #            genotypes[individual_id][vntr_id] = lines[i][j]
 #    return genotypes
     df = pd.read_csv(genotype_file, delimiter=' ', header=None)
-    df = df.drop(columns=[1, 2, 3])
+#    df = df.drop(columns=[1, 2, 3])
     df = df.set_index([0])
     df.columns = ['Bjarni_%s' % i for i in range(len(df.columns))]
     df = df.transpose()
+    for col in df.columns:
+        for row in range(df.shape[0]):
+            if df[col][row] not in [None, 'None']:
+                df[col][row] = sum([float(e) for e in df[col][row].split('/')])/ 2.0
     return df
 
 def run_anova_for_bjarni():
     genotypes_df = load_bjarni_genotypes()
-    vntr_genotypes = get_vntr_alleles(genotypes)
+#    vntr_genotypes = get_vntr_alleles(genotypes)
     expression_file = 'Bjarni/toMehrdad/eMat_cropped'
     df = pd.read_csv(expression_file, delimiter=' ', header=None)
     df = df.drop(columns=[1, 2, 3])
@@ -288,16 +292,49 @@ def run_anova_for_bjarni():
     df.columns = ['Bjarni_%s' % i for i in range(len(df.columns))]
     df = df.transpose()
 #    for vntr_id, number_of_alleles in vntr_genotypes:
+    pvalues = {}
     for vntr_id in df.columns:
+#        if vntr_id != 315000:
+#            continue
         if reference_vntrs[vntr_id].chromosome[3:] == 'Y':
             continue
-        number_of_alleles = set([e for e in genotype_df.columns if e not in ['None', None]])
+        number_of_alleles = len(set([e for e in genotypes_df[vntr_id] if e not in ['None', None]]))
         if number_of_alleles <= 1:
             continue
         gene_df = df.drop(columns=list([e for e in df.columns if e != vntr_id]))
-        print(vntr_id, number_of_alleles)
+        anova_target = 'expression_%s' % vntr_id
+        gene_df.columns = [anova_target]
+#        print(genotypes_df[vntr_id])
+        if 'None' in genotypes_df[vntr_id]:
+            print('bad')
+
+        gene_name = reference_vntrs[vntr_id].gene_name
+        vntr_genotype_title = '%s_%s_Genotype' % (gene_name, vntr_id)
+        gene_df[vntr_genotype_title] = genotypes_df[vntr_id]
+#        print(gene_df)
+
+        to_remove = []
+        for i in range(gene_df.shape[0]):
+            if gene_df[vntr_genotype_title][i] in [None, 'None']:
+                to_remove.append(i)
+ #       print(to_remove)
+        gene_df.drop(gene_df.index[to_remove], inplace=True)
+        
+        vntr_mod = ols('%s ~ %s' % (anova_target, vntr_genotype_title), data=gene_df).fit()
+        pvalues[vntr_id] = vntr_mod.f_pvalue
+        if vntr_mod.f_pvalue < 0.05:
+            print(vntr_id)
         continue
         run_anova_for_vntr(df, genotypes, vntr_id)
+    print('------')
+    print(pvalues[690585]) # not mainly in blood
+    print(pvalues[315000])
+    print(pvalues[393574])
+    print(pvalues[316163])
+    print(pvalues[423956])
+    print(pvalues[386120])
+    print(pvalues[319811])
+    print(pvalues[273409])
 
 
 def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'):

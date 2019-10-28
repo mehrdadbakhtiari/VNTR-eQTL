@@ -34,8 +34,16 @@ def compute_peer_factors(tissue_name='Blood Vessel'):
         return
     df.set_index('Description', inplace=True)
     df = df.transpose()
+    return computer_and_store_peer_factors(df, peer_result_file, K)
+
+
+def compute_and_store_peer_factors(input_df, peer_result_file, K=15):
 #    print(df)
 #    print(df.values)
+    # df:
+    #       Gene1   Gene2
+    # Ind1  0.4     6
+    # Ind2  14      0.5
     Nmax_iterations = 100
     Nmax_iterations = 3
     model = peer.PEER()
