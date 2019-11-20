@@ -1,7 +1,7 @@
 rna_table_file = '../Sra_table_RNA-Seq_only'
 rpkm_file = '../files/phe000020.v1.GTEx_RNAseq.expression-data-matrixfmt.c1/GTEx_Data_20160115_v7_RNAseq_RNASeQCv1.1.8_gene_rpkm.gct'
 
-expression_by_tissue_dir = '../Expression_by_Tissue/'
+expression_by_tissue_dir = '../Expression_by_Subtissue/'
 protein_id_to_gene = {}
 
 
@@ -58,7 +58,7 @@ for count, line in enumerate(lines[1:]):
     for i in range(len(line)):
         expression = float(line[i])
         tissue = experiment_tissue[rpkm_header[i]]
-        tissue = main_tissue[tissue]
+#        tissue = main_tissue[tissue]
         individual_id = "-".join(rpkm_header[i].split("-")[:2])
         if tissue not in expression_by_tissue[protein_id].keys():
             expression_by_tissue[protein_id][tissue] = {}
