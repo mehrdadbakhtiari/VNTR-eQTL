@@ -21,7 +21,7 @@ def plot_Alpha(Alpha, color="blue"):
 
 
 def compute_peer_factors(tissue_name='Blood Vessel'):
-    tissue_rpkm_file = '../Expression_by_Subissue/%s.rpkm' % tissue_name
+    tissue_rpkm_file = '../Expression_by_Subtissue/%s.rpkm' % tissue_name
     K = 15
     peer_result_file = result_dir + 'peer_factors_%s_%s' % (tissue_name, K)
     if os.path.exists(peer_result_file):
@@ -131,7 +131,7 @@ def eps_prior_demo():
 
 if __name__ == '__main__':
     import glob
-    expression_files = glob.glob('../Expression_By_Subtissue/*')
+    expression_files = glob.glob('../Expression_by_Subtissue/*')
     tissue_names = [ef.split('/')[-1][:-5] for ef in expression_files]
     for tissue in tissue_names:
         compute_peer_factors(tissue_name=tissue)
