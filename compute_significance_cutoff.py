@@ -4,6 +4,8 @@ import numpy as np
 from bisect import bisect
 
 
+FDR_RATE = 0.05
+
 def load_pvalues_in_directory(dir, file_name_suffix):
     res = []
     tissues_dir = glob.glob(dir + '/*')
@@ -17,7 +19,7 @@ def load_pvalues_in_directory(dir, file_name_suffix):
     return res
 
 
-def plot_qq_plot(pvalues, permuted_pvalues):
+def plot_qq_plot(pvalues, permuted_pvalues, significance_cutoff):
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -37,6 +39,7 @@ def plot_qq_plot(pvalues, permuted_pvalues):
     plt.scatter(grid, -np.log10(np.array(sorted(permuted_pvalues, reverse=False))), label='permuted genotypes')
 
     plt.plot([0, 5], [0, 5], label='x = y', color='red')
+    # plt.plot([0, 5], [significance_cutoff, significance_cutoff], label='Cutoff', color='black')
 
     #    plt.ylim((0, 20))
     #    plt.xlim((0, 10))
@@ -57,10 +60,13 @@ def find_cutoff():
 
     sorted_pvalues = sorted(pvalues)
     sorted_permuted = sorted(permuted_pvalues)
+    print('all tests:', len(sorted_pvalues))
 
+    significance_cutoff = 0
     for theta in sorted(pvalues + permuted_pvalues, reverse=True):
         fdr = float(bisect(sorted_permuted, theta)) / bisect(sorted_pvalues, theta)
-        if fdr <= 0.05:
+        if fdr <= FDR_RATE:
+            significance_cutoff = theta
             print('found fdr', fdr, theta)
             print('n1 ', bisect(sorted_permuted, theta))
             print('n2 ', bisect(sorted_pvalues, theta))
@@ -70,13 +76,14 @@ def find_cutoff():
     res = 0
     for rank, theta in enumerate(sorted_pvalues):
         rank += 1
-        im_q = float(rank) / len(pvalues) * 0.05
+        im_q = float(rank) / len(pvalues) * FDR_RATE
         if theta < im_q:
             res = theta
     print('benjamini: ', res)
     print('benjamini significants ', bisect(sorted_pvalues, res))
 
-    plot_qq_plot(pvalues, permuted_pvalues)
+    from math import log
+    plot_qq_plot(pvalues, permuted_pvalues, -log(significance_cutoff, 10))
 
 
 find_cutoff()
