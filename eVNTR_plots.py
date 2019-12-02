@@ -405,19 +405,23 @@ def plot_evntrs_per_tissue():
     sns.set_context("talk")
 
     data = {}
-    tissue_data_dir = glob.glob('pvalues/*')
+    tissue_data_dir = glob.glob('regression_results/*')
     for tissue_dir in tissue_data_dir:
         vntrs_data = glob.glob(tissue_dir + '/*')
-        tissue_name = os.path.basename(tissue_dir)
+        tissue_name = os.path.basename(tissue_dir).split('---')[0]
+        if len(os.path.basename(tissue_dir).split('---')) > 1:
+            tissue_name += ' - ' + os.path.basename(tissue_dir).split('---')[1][:5]
         if tissue_name not in data.keys():
             data[tissue_name] = set([])
         for vntr_pvalue_dir in vntrs_data:
-            vntr_id = int(os.path.basename(vntr_pvalue_dir))
-            data[tissue_name].add(vntr_id)
-            pvalue_file = vntr_pvalue_dir + '/pvalues.txt'
+            vntr_id = int(os.path.basename(vntr_pvalue_dir)[:-4])
+            # data[tissue_name].add(vntr_id)
+            # pvalue_file = vntr_pvalue_dir + '/pvalues.txt'
+            pvalue_file = vntr_pvalue_dir
             with open(pvalue_file) as infile:
-                lines = infile.readlines()
-                lines = [line.strip() for line in lines if line.strip() != '']
+                line = infile.readlines()[0].strip()
+                if float(line.split()[4]) < 0.0005:
+                    data[tissue_name].add(vntr_id)
 
     data_count = {key: len(value) for key, value in data.items()}
     sorted_data = sorted(data_count.items(), key=operator.itemgetter(1), reverse=True)
@@ -434,7 +438,7 @@ def plot_evntrs_per_tissue():
             # height = rect.get_height()
             plt.text(rect.get_x() + rect.get_width() / 2., 1.01 * (offset[i]),
                     '%d' % int(offset[i]),
-                    ha='center', va='bottom', color='gray', size=6)
+                    ha='center', va='bottom', color='gray', size=5)
 
     for shared_counter in range(0, 2):#len(sorted_data)):
         shared_by_tissues[shared_counter] = []
@@ -464,9 +468,9 @@ def plot_evntrs_per_tissue():
         bottoms = [bottoms[i] + shared_by_tissues[shared_counter][i] for i in range(len(bottoms))]
     autolabel(bar, bottoms)
 
-    plt.xticks(np.array([i for i in range(len(tissue_order))]), tissue_order, rotation=90)
+    plt.xticks(np.array([i for i in range(len(tissue_order))]), tissue_order, rotation=90, fontsize=6)
     plt.legend()
-    plt.ylim(0, 87)
+    plt.ylim(0, 60)
     plt.xlabel('Tissue name')
     plt.ylabel('Number of VNTR-eQTLs')
     plt.tight_layout(pad=2, w_pad=0, h_pad=2)
@@ -838,7 +842,7 @@ if __name__ == '__main__':
     # plot_genotypes_difference_from_reference()
     # plot_vntrs_difference_from_reference()
     # plot_vntr_pvalues_qq_plot()
-    # plot_evntrs_per_tissue()
+    plot_evntrs_per_tissue()
     # plot_evntrs_and_number_of_tissues()
 
     # plot_expression_genotype_correlation(331737, 'Heart')
@@ -874,4 +878,4 @@ if __name__ == '__main__':
 
     # plot_allele_count_distribution()
     # plot_vntr_polymorphic_rate_based_on_annotation()
-    plot_vntr_polymorphic_rate_based_on_cohort_size()
+    # plot_vntr_polymorphic_rate_based_on_cohort_size()
