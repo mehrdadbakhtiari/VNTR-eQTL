@@ -24,6 +24,7 @@ caviar_top_5 = {}
 caviar_top_1 = {}
 
 min_individuals_in_group = 4
+significance_threshold = 0.0005
 
 highest_fs = 0
 lowest_p = 1e10
@@ -453,9 +454,17 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
         os.makedirs(os.path.dirname(effect_size_file))
     with open(effect_size_file, 'w') as outfile:
         outfile.write('%s\n' % effect_size)
-    return
 
-    if vntr_mod.f_pvalue > 0.05:
+    regression_results = 'regression_results/%s/%s.txt' % (tissue_name.replace(' ', '-'), vntr_id)
+    if not os.path.exists(os.path.dirname(regression_results)):
+        os.makedirs(os.path.dirname(regression_results))
+    with open(regression_results, 'w') as outfile:
+        outfile.write('%s\t%s\t%s\t%s\t%s\t%s\n' % (gene_name, reference_vntrs[vntr_id].chromosome,
+                                    reference_vntrs[vntr_id].start_point, vntr_mod.params[vntr_genotype_title],
+                                    vntr_mod.f_pvalue, vntr_mod.bse[vntr_genotype_title]))
+
+    return
+    if vntr_mod.f_pvalue > significance_threshold:
         print('not a significant VNTR for sure')
         return
 
