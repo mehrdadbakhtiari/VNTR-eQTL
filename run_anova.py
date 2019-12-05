@@ -413,6 +413,11 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
         # gene is not expressed
         return
 
+    # normalize expression values by fitting them to a normal distribution
+    from sklearn.preprocessing import quantile_transform
+    normalied_expr = quantile_transform(np.array([[e] for e in temp[gene_name]]), random_state=0, copy=True)
+    temp[gene_name] = list(pd.DataFrame(normalied_expr)[0])
+
     groups = [list(temp.loc[temp['%s' % vntr_genotype_title] == repeat_count]['%s' % gene_name]) for repeat_count in found_genotypes]
 
     anova_target = gene_name
