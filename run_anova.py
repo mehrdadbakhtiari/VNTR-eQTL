@@ -323,7 +323,7 @@ def run_anova_for_bjarni():
         
         vntr_mod = ols('%s ~ %s' % (anova_target, vntr_genotype_title), data=gene_df).fit()
         pvalues[vntr_id] = vntr_mod.f_pvalue
-        if vntr_mod.f_pvalue < 0.05:
+        if vntr_mod.f_pvalue < significance_threshold:
             print(vntr_id)
         continue
         run_anova_for_vntr(df, genotypes, vntr_id)
@@ -546,7 +546,7 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
     if causality_rank == 1:
         add_tissue(caviar_top_1, vntr_id, tissue_name)
 
-    significant_vntr = vntr_mod.f_pvalue < 0.05
+    significant_vntr = vntr_mod.f_pvalue < significance_threshold
     print('significant_vntr: ', significant_vntr)
     print('best_snp info: ', best_snp_f, best_snp_p)
     fs, pv = vntr_mod.fvalue, vntr_mod.f_pvalue
@@ -562,27 +562,22 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
     smallest_group = 1e10
     for g in groups:
         smallest_group = min(smallest_group, len(g))
-    if pv < 0.05 and smallest_group >= min_individuals_in_group:
+    if significant_vntr and smallest_group >= min_individuals_in_group:
         global significant_vntrs
-        if significant_vntr:
-#            significant_vntrs.add(vntr_id)
-            add_tissue(significant_vntrs, vntr_id, tissue_name)
+        add_tissue(significant_vntrs, vntr_id, tissue_name)
+
         global top_p_value_vntrs
         if pv < best_snp_p:
             add_tissue(top_p_value_vntrs, vntr_id, tissue_name)
-            #top_p_value_vntrs.add(vntr_id)
         global beat_top_10_snps_vntrs
         global beat_top_20_snps_vntrs
         global beat_top_100_snps_vntrs
         if beat_10:
             add_tissue(beat_top_10_snps_vntrs, vntr_id, tissue_name)
-#            beat_top_10_snps_vntrs.add(vntr_id)
         if beat_20:
             add_tissue(beat_top_20_snps_vntrs, vntr_id, tissue_name)
-#            beat_top_20_snps_vntrs.add(vntr_id)
         if beat_100:
             add_tissue(beat_top_100_snps_vntrs, vntr_id, tissue_name)
-#            beat_top_100_snps_vntrs.add(vntr_id)
 
         expression_correlation_file = 'genotype_expression_correlation/%s/%s/correlation.txt' % (tissue_name, vntr_id)
         if not os.path.exists(os.path.dirname(expression_correlation_file)):
