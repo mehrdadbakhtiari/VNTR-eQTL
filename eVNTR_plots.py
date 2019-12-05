@@ -264,7 +264,7 @@ def plot_vntr_polymorphic_rate_based_on_cohort_size():
     res = {}
     cohort_size = []
     prev_points = {'UTR':0, 'Coding':0, 'Promoter':0}
-    for i in [t for t in range(1, 313, 10)]:# + [None]:
+    for i in [i for i in range(651, 652, 10)]:# + [None]:
         # if i is not None:
         #     continue
         print(i)
@@ -296,25 +296,26 @@ def plot_vntr_polymorphic_rate_based_on_cohort_size():
             # if number_of_genotypes > 1:
             count_of_most_frequent = vntr_genotypes_map[vntr_id].count(max(set(vntr_genotypes_map[vntr_id]), key = vntr_genotypes_map[vntr_id].count))
             # if count_of_most_frequent < i*0.95:
-            if i - count_of_most_frequent > 10:
+            if i - count_of_most_frequent > 5:
             # if count_of_second_frequent > 5:
                 poly[annotation] += 1
             total[annotation] += 1
 
         rate = {key: float(poly[key]) / total[key] for key in poly.keys()}
+        print(poly)
         for key in poly.keys():
             if key not in res.keys():
                 res[key] = []
             res[key].append(max(rate[key], prev_points[key]))
             # prev_points[key] = max(rate[key], prev_points[key]*101/100)
-        cohort_size.append(i if i != None else 313)
+        cohort_size.append(i if i != None else 652)
     for key in res.keys():
         plt.plot(cohort_size, res[key], label=key)
     plt.legend()
     plt.xlabel('Cohort Size')
     plt.ylabel('Rate of polymorphic VNTRs')
     plt.tight_layout()
-    plt.savefig('polymorphic_vntrs_cohort_size.png', dpi=300)
+    plt.savefig('polymorphic_vntrs_cohort_size_l5.png', dpi=300)
     plt.cla()
     plt.clf()
     plt.close()
@@ -842,7 +843,7 @@ if __name__ == '__main__':
     # plot_genotypes_difference_from_reference()
     # plot_vntrs_difference_from_reference()
     # plot_vntr_pvalues_qq_plot()
-    plot_evntrs_per_tissue()
+    # plot_evntrs_per_tissue()
     # plot_evntrs_and_number_of_tissues()
 
     # plot_expression_genotype_correlation(331737, 'Heart')
@@ -878,4 +879,5 @@ if __name__ == '__main__':
 
     # plot_allele_count_distribution()
     # plot_vntr_polymorphic_rate_based_on_annotation()
-    # plot_vntr_polymorphic_rate_based_on_cohort_size()
+    plot_vntr_polymorphic_rate_based_on_cohort_size()
+
