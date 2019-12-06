@@ -43,7 +43,7 @@ try:
 except:
     pass
 
-rpkm_directory = '../Expression_by_Tissue/'
+rpkm_directory = '../Expression_by_Subtissue/'
 
 caviar_result_dir = 'caviar_inputs/'
 
