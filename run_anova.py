@@ -250,15 +250,18 @@ def run_anova():
     for tissue_name in tissue_names:
         tissue_rpkm_file = rpkm_directory + tissue_name + '.rpkm'
         df = pd.read_csv(tissue_rpkm_file, delimiter='\t', header=1)
+        if len(df.columns) < 100:
+            print('skip %s as it has too few individuals' % tissue_name)
+            continue
         for vntr_id, number_of_genotypes in vntr_genotypes:
             if reference_vntrs[vntr_id].chromosome[3:] == 'Y':
                 continue
             if number_of_genotypes <= 1:
                 continue
-#            if vntr_id not in important_vntr_ids:
-#                continue
+            if vntr_id not in important_vntr_ids:
+               continue
             run_anova_for_vntr(df, genotypes, vntr_id, tissue_name)
-#            exit(0)
+            # exit(0)
 #        break
 
 def load_bjarni_genotypes():
