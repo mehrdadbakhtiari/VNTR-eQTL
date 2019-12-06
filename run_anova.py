@@ -68,12 +68,14 @@ def get_wgs_id_to_individual_id_map():
     return result
 
 
-def load_individual_genotypes(reference_vntrs, average=True):
+def load_individual_genotypes(reference_vntrs, average=True, limit=None):
     res = {}
     # res['GTEX-QWERT'][527655] = 2.5
     wgs_id_to_gtex_id = get_wgs_id_to_individual_id_map()
     genotype_files = glob.glob(VNTR_genotypes_dir + '*.out')
 #    genotype_files = glob.glob(VNTR_genotypes_dir + 'out_*')
+    if limit:
+        genotype_files = genotype_files[:limit]
 
     for genotype_file in genotype_files:
         wgs_id = os.path.basename(genotype_file).split('.')[0]
