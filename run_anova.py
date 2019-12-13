@@ -24,10 +24,12 @@ caviar_top_5 = {}
 caviar_top_1 = {}
 
 min_individuals_in_group = 4
+significance_threshold = 0.0005
 
 highest_fs = 0
 lowest_p = 1e10
 VNTR_genotypes_dir = '../gtex_genotypes/'
+genotypes_dir_1kg = '../1kg_advntr_genotype/'
 #VNTR_genotypes_dir = '/pedigree2/projects/adVNTR/gtex_genotypes/'
 wgs_id_gtex_id_file = '../GTEX_sample_id_conversion.txt'
 vntr_models_dir = '/pedigree2/projects/adVNTR/vntr_data/hg38_selected_VNTRs_Illumina.db'
@@ -42,7 +44,7 @@ try:
 except:
     pass
 
-rpkm_directory = '../Expression_by_Tissue/'
+rpkm_directory = '../Expression_by_Subtissue/'
 
 caviar_result_dir = 'caviar_inputs/'
 
@@ -67,12 +69,43 @@ def get_wgs_id_to_individual_id_map():
     return result
 
 
-def load_individual_genotypes(reference_vntrs, average=True):
+def load_1k_genotypes(reference_vntrs, average=True, limit=None, individual_ids=None):
+    res = {}
+    # res['HG03193'][527655] = 2.5
+    genotype_files = glob.glob(genotypes_dir_1kg + '*.genotype')
+    if limit:
+        genotype_files = genotype_files[:limit]
+
+    for genotype_file in genotype_files:
+        individual_id = os.path.basename(genotype_file).split('.')[0]
+        if individual_ids is not None and individual_id not in individual_ids:
+            continue
+        res[individual_id] = {}
+        with open(genotype_file) as infile:
+            lines = infile.readlines()
+        if lines[0].startswith('This is an modifie'):
+            lines = lines[1:]
+        _vntr_id = None
+        for i, line in enumerate(lines):
+            line = line.strip()
+            if i % 2 == 0:
+                _vntr_id = int(line)
+            else:
+                if len(reference_vntrs[_vntr_id].pattern) >= 6:
+                    avg_length = get_average([float(e) for e in line.split('/')]) if line != 'None' else None
+                    diploid_alleles = [float(e) for e in line.split('/')] if line != 'None' else (None, None)
+                    res[individual_id][_vntr_id] = avg_length if average else diploid_alleles
+
+    return res
+
+
+def load_individual_genotypes(reference_vntrs, average=True, limit=None):
     res = {}
     # res['GTEX-QWERT'][527655] = 2.5
     wgs_id_to_gtex_id = get_wgs_id_to_individual_id_map()
     genotype_files = glob.glob(VNTR_genotypes_dir + '*.out')
-#    genotype_files = glob.glob(VNTR_genotypes_dir + 'out_*')
+    if limit:
+        genotype_files = genotype_files[:limit]
 
     for genotype_file in genotype_files:
         wgs_id = os.path.basename(genotype_file).split('.')[0]
@@ -247,30 +280,31 @@ def run_anova():
     for tissue_name in tissue_names:
         tissue_rpkm_file = rpkm_directory + tissue_name + '.rpkm'
         df = pd.read_csv(tissue_rpkm_file, delimiter='\t', header=1)
+        if len(df.columns) < 100:
+            print('skip %s as it has too few individuals' % tissue_name)
+            continue
         for vntr_id, number_of_genotypes in vntr_genotypes:
             if reference_vntrs[vntr_id].chromosome[3:] == 'Y':
                 continue
             if number_of_genotypes <= 1:
                 continue
-#            if vntr_id not in important_vntr_ids:
-#                continue
-            run_anova_for_vntr(df, genotypes, vntr_id, tissue_name)
-#            exit(0)
-#        break
+            if vntr_id not in important_vntr_ids:
+               continue
+            if bootstrapping:
+                res = []
+                for k in range(100):
+                    res.append(run_anova_for_vntr(df, genotypes, vntr_id, tissue_name))
+                # print(res, significance_threshold)
+                print(sum([1 if (e < significance_threshold * 2) else 0 for e in res]), vntr_id,
+                '%s: %s' % (reference_vntrs[vntr_id].chromosome, reference_vntrs[vntr_id].start_point))
+            else:
+                run_anova_for_vntr(df, genotypes, vntr_id, tissue_name)
+        break
+
 
 def load_bjarni_genotypes():
 #    # res['BJARNI_0'][527655] = 2.5
     genotype_file = 'Bjarni/toMehrdad/VNTR_genotypes'
-#    with open(genotype_file) as infile:
-#        lines = genotype.readlines()
-#        lines = [line.strip().split() for line in lines]
-#    for i in range(len(lines)):
-#        individual_id = 'Bjarni_%s' % i
-#        vntr_id = lines[i][0]
-#        genotypes[individual_id] = {}
-#        for j in range(1, len(lines[0])):
-#            genotypes[individual_id][vntr_id] = lines[i][j]
-#    return genotypes
     df = pd.read_csv(genotype_file, delimiter=' ', header=None)
 #    df = df.drop(columns=[1, 2, 3])
     df = df.set_index([0])
@@ -322,7 +356,7 @@ def run_anova_for_bjarni():
         
         vntr_mod = ols('%s ~ %s' % (anova_target, vntr_genotype_title), data=gene_df).fit()
         pvalues[vntr_id] = vntr_mod.f_pvalue
-        if vntr_mod.f_pvalue < 0.05:
+        if vntr_mod.f_pvalue < significance_threshold:
             print(vntr_id)
         continue
         run_anova_for_vntr(df, genotypes, vntr_id)
@@ -335,6 +369,106 @@ def run_anova_for_bjarni():
     print(pvalues[386120])
     print(pvalues[319811])
     print(pvalues[273409])
+
+
+def run_anova_for_geuvadis():
+    with open('ensemble87_to_transcript_ens.txt') as infile:
+        lines = infile.readlines()[1:]
+    gene_ens_to_trans_ens = {line.strip().split()[0]: [] for line in lines}
+    for line in lines:
+        g, t = line.strip().split()
+        gene_ens_to_trans_ens[g].append(t)
+
+    with open('ensemblToGeneName.txt') as infile:
+        lines = infile.readlines()
+    trans_ens_to_gene_name = {line.strip().split()[0]: line.strip().split()[1] for line in lines}
+    expression_df = pd.read_csv('Geuvadis/GD462.GeneQuantRPKM.50FN.samplename.resk10.txt', delimiter='\t', header=0)
+
+    gene_ensembles = expression_df['Gene_Symbol']
+    gene_names = []
+    trans_ens_keys = set(trans_ens_to_gene_name.keys())
+    gene_ens_keys = set(gene_ens_to_trans_ens.keys())
+    for g_ens in gene_ensembles:
+        found = False
+        g_ens = g_ens.split('.')[0]
+        if g_ens in gene_ens_keys:
+            for t_ens in gene_ens_to_trans_ens[g_ens]:
+                if t_ens in trans_ens_keys:
+                    gene_names.append(trans_ens_to_gene_name[t_ens])
+                    found = True
+                    break
+        if not found:
+            gene_names.append(g_ens)
+
+    ensembl_ids = {gene_names[i]: expression_df['Gene_Symbol'][i] for i in range(len(gene_names))}
+    expression_df['Gene_Symbol'] = gene_names
+    individual_ids = set(list(expression_df.columns[4:]))
+
+    genotypes = load_1k_genotypes(reference_vntrs, individual_ids=individual_ids)
+    vntr_genotypes = get_vntr_alleles(genotypes)
+
+    with open('Blood_VNTR-eQTLs.txt') as infile:
+        blood_vntrs = [int(line.strip()) for line in infile.readlines()]
+    print(len(blood_vntrs))
+
+    for vntr_id, number_of_genotypes in vntr_genotypes:
+        if reference_vntrs[vntr_id].chromosome[3:] == 'Y':
+            continue
+        if vntr_id not in blood_vntrs:
+            continue
+        if number_of_genotypes <= 1:
+            continue
+        gene_name = reference_vntrs[vntr_id].gene_name.replace('-', '__')
+
+        gene_df = expression_df.loc[expression_df['Gene_Symbol'] == gene_name]
+        if gene_df.shape[0] == 0:
+            print('no expression')
+            # don't have expression for this gene
+            continue
+
+        gene_df = gene_df.reset_index()
+        gene_df.drop(columns=['TargetID', 'Chr', 'Coord', 'index'], inplace=True)
+
+        genotypes_row = get_genotypes_row_for_df(gene_df, genotypes, vntr_id)
+        vntr_genotype_title = '%s_%s_Genotype' % (gene_name, vntr_id)
+        gene_df.loc[len(gene_df.index)] = [vntr_genotype_title] + genotypes_row
+
+        to_drop_cols = []
+        for i, col in enumerate(gene_df.columns[1:]):
+            if genotypes_row[i] == None:
+                to_drop_cols.append(col)
+        gene_df = gene_df.drop(columns=to_drop_cols)
+
+        gene_df = gene_df.set_index('Gene_Symbol').transpose()
+
+        if (np.median(gene_df[gene_name]) == 0):
+            print(ensembl_ids[gene_name], 'no expression')
+            # gene is not expressed
+            continue
+        gene_df[gene_name] = get_normalized_gene_expression(gene_df[gene_name])
+
+        # print(gene_df)
+        vntr_mod = ols('%s ~ %s' % (gene_name, vntr_genotype_title), data=gene_df).fit()
+        print(vntr_mod.f_pvalue < significance_threshold*2, vntr_mod.f_pvalue, ensembl_ids[gene_name], vntr_id, '%s: %s' % (reference_vntrs[vntr_id].chromosome, reference_vntrs[vntr_id].start_point))
+        # run_anova_for_vntr(df, genotypes, vntr_id, tissue_name)
+
+
+# normalize expression values by fitting them to a normal distribution
+def get_normalized_gene_expression(gene_expression):
+    from sklearn.preprocessing import quantile_transform
+    normalied_expr = quantile_transform(np.array([[e] for e in gene_expression]), random_state=0, copy=True)
+    return list(pd.DataFrame(normalied_expr)[0])
+
+
+def get_genotypes_row_for_df(gene_df, genotypes, vntr_id):
+    genotypes_row = []
+    for i in range(1, len(gene_df.columns)):
+        individual_id = gene_df.columns[i]
+        if individual_id in genotypes.keys() and vntr_id in genotypes[individual_id].keys() and genotypes[individual_id][vntr_id] is not None:
+            genotypes_row.append(genotypes[individual_id][vntr_id])
+        else:
+            genotypes_row.append(None)
+    return genotypes_row
 
 
 def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'):
@@ -356,13 +490,7 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
             to_drop_cols.append(col)
     gene_df = gene_df.drop(columns=to_drop_cols)
 
-    genotypes_row = []
-    for i in range(1, len(gene_df.columns)):
-        individual_id = gene_df.columns[i]
-        if individual_id in genotypes.keys() and vntr_id in genotypes[individual_id].keys() and genotypes[individual_id][vntr_id] is not None:
-            genotypes_row.append(genotypes[individual_id][vntr_id])
-        else:
-            genotypes_row.append(None)
+    genotypes_row = get_genotypes_row_for_df(gene_df, genotypes, vntr_id)
     vntr_genotype_title = '%s_%s_Genotype' % (gene_name, vntr_id)
     gene_df.loc[1] = [vntr_genotype_title] + genotypes_row
 
@@ -370,7 +498,7 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
         if genotypes_row.count(genotypes_row[i]) < min_individuals_in_group:
             genotypes_row[i] = None
     found_genotypes = sorted(list(set([e for e in genotypes_row if e is not None])))
-    print('found_genotypes:', found_genotypes)
+    # print('found_genotypes:', found_genotypes)
     if len(found_genotypes) < 2:
         # only one genotype for this VNTR
         return
@@ -413,6 +541,8 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
         # gene is not expressed
         return
 
+    temp[gene_name] = get_normalized_gene_expression(temp[gene_name])
+
     groups = [list(temp.loc[temp['%s' % vntr_genotype_title] == repeat_count]['%s' % gene_name]) for repeat_count in found_genotypes]
 
     anova_target = gene_name
@@ -448,9 +578,17 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
         os.makedirs(os.path.dirname(effect_size_file))
     with open(effect_size_file, 'w') as outfile:
         outfile.write('%s\n' % effect_size)
-    return
 
-    if vntr_mod.f_pvalue > 0.05:
+    regression_results = 'regression_results/%s/%s.txt' % (tissue_name.replace(' ', '-'), vntr_id)
+    if not os.path.exists(os.path.dirname(regression_results)):
+        os.makedirs(os.path.dirname(regression_results))
+    with open(regression_results, 'w') as outfile:
+        outfile.write('%s\t%s\t%s\t%s\t%s\t%s\n' % (gene_name, reference_vntrs[vntr_id].chromosome,
+                                    reference_vntrs[vntr_id].start_point, vntr_mod.params[vntr_genotype_title],
+                                    vntr_mod.f_pvalue, vntr_mod.bse[vntr_genotype_title]))
+
+    return
+    if vntr_mod.f_pvalue > significance_threshold:
         print('not a significant VNTR for sure')
         return
 
@@ -532,7 +670,7 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
     if causality_rank == 1:
         add_tissue(caviar_top_1, vntr_id, tissue_name)
 
-    significant_vntr = vntr_mod.f_pvalue < 0.05
+    significant_vntr = vntr_mod.f_pvalue < significance_threshold
     print('significant_vntr: ', significant_vntr)
     print('best_snp info: ', best_snp_f, best_snp_p)
     fs, pv = vntr_mod.fvalue, vntr_mod.f_pvalue
@@ -548,27 +686,22 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
     smallest_group = 1e10
     for g in groups:
         smallest_group = min(smallest_group, len(g))
-    if pv < 0.05 and smallest_group >= min_individuals_in_group:
+    if significant_vntr and smallest_group >= min_individuals_in_group:
         global significant_vntrs
-        if significant_vntr:
-#            significant_vntrs.add(vntr_id)
-            add_tissue(significant_vntrs, vntr_id, tissue_name)
+        add_tissue(significant_vntrs, vntr_id, tissue_name)
+
         global top_p_value_vntrs
         if pv < best_snp_p:
             add_tissue(top_p_value_vntrs, vntr_id, tissue_name)
-            #top_p_value_vntrs.add(vntr_id)
         global beat_top_10_snps_vntrs
         global beat_top_20_snps_vntrs
         global beat_top_100_snps_vntrs
         if beat_10:
             add_tissue(beat_top_10_snps_vntrs, vntr_id, tissue_name)
-#            beat_top_10_snps_vntrs.add(vntr_id)
         if beat_20:
             add_tissue(beat_top_20_snps_vntrs, vntr_id, tissue_name)
-#            beat_top_20_snps_vntrs.add(vntr_id)
         if beat_100:
             add_tissue(beat_top_100_snps_vntrs, vntr_id, tissue_name)
-#            beat_top_100_snps_vntrs.add(vntr_id)
 
         expression_correlation_file = 'genotype_expression_correlation/%s/%s/correlation.txt' % (tissue_name, vntr_id)
         if not os.path.exists(os.path.dirname(expression_correlation_file)):
