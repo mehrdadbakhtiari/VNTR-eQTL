@@ -1,8 +1,10 @@
 
 
-def load_peer_factors(tissue_name='Blood Vessel'):
+def load_peer_factors(tissue_name='Blood Vessel', file_name=None):
     K = 15
     peer_factor_file = 'PEER_results/peer_factors_%s_%s' % (tissue_name, K)
+    if file_name is not None:
+        peer_factor_file = file_name
     with open(peer_factor_file) as infile:
         lines = infile.readlines()
 
