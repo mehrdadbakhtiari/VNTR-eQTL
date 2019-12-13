@@ -129,7 +129,33 @@ def eps_prior_demo():
             print "Eps pa=%.4f pb=%.4f mean(residuals^2)=%.4f"%(pa, pb, SP.mean(model.getResiduals()**2))
 
 
+def compute_peer_factors_bjarni():
+    rpkm_file = 'Bjarni/toMehrdad/Blood_VNTR-eQTLs_ENSEMBL87.table'
+    K = 3
+    peer_result_file = 'peer_factors_%s_%s' % ('Bjarni', K)
+    rpkm_file = 'Geuvadis/GD462.GeneQuantRPKM.50FN.samplename.resk10.txt'
+    K = 15
+    peer_result_file = 'peer_factors_%s_%s' % ('Geuvadis', K)
+    if os.path.exists(peer_result_file):
+        pass
+#        return
+#    y = SP.loadtxt(tissue_rpkm_file, delimiter="\t")
+#    print(y)
+#    df = pd.read_csv(rpkm_file, delimiter=' ', header=0)
+    df = pd.read_csv(rpkm_file, delimiter='\t', header=0)
+    print(len(df.columns))
+    df = df.drop(columns=[df.columns[1], df.columns[2], df.columns[3]])
+    if len(df.columns) < K + 1:
+        return
+#    df.set_index('0', inplace=True)
+    df.set_index('TargetID', inplace=True)
+    df = df.transpose()
+    return compute_and_store_peer_factors(df, peer_result_file, K)
+
+
 if __name__ == '__main__':
+    compute_peer_factors_bjarni()
+    exit(0)
     import glob
     expression_files = glob.glob('../Expression_by_Subtissue/*')
     tissue_names = [ef.split('/')[-1][:-5] for ef in expression_files]
