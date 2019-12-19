@@ -21,8 +21,7 @@ def load_peer_factors(tissue_name='Blood Vessel', file_name=None):
 
     return peer_factors, factors
 
-def load_population_pcs():
-    population_pc_file = 'PCA_results/pca.gtex.pca.evec'
+def load_population_pcs(population_pc_file='PCA_results/pca.gtex.pca.evec'):
     with open(population_pc_file) as infile:
         lines = infile.readlines()
 
