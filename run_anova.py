@@ -25,6 +25,7 @@ caviar_top_1 = {}
 
 min_individuals_in_group = 4
 significance_threshold = 0.0005
+bootstrapping = True
 
 highest_fs = 0
 lowest_p = 1e10
@@ -489,6 +490,11 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
         if col not in genotypes.keys() or vntr_id not in genotypes[col] or genotypes[col][vntr_id] is None:
             to_drop_cols.append(col)
     gene_df = gene_df.drop(columns=to_drop_cols)
+    seq = [i for i in range(1, len(gene_df.columns))]
+    if bootstrapping:
+        from random import sample
+        to_drop_cols = sample(seq, len(seq) / 5)
+        gene_df = gene_df.drop(columns=gene_df.columns[to_drop_cols])
 
     genotypes_row = get_genotypes_row_for_df(gene_df, genotypes, vntr_id)
     vntr_genotype_title = '%s_%s_Genotype' % (gene_name, vntr_id)
@@ -558,6 +564,10 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
     print(temp.shape)
 #    print(vntr_genotype_title)
     vntr_mod = ols('%s ~ %s' % (anova_target, vntr_genotype_title), data=temp).fit()
+
+    if bootstrapping:
+        return vntr_mod.f_pvalue
+
 #    vntr_mod = sm.OLS(temp[gene_name].astype(float), temp[[vntr_genotype_title, 'const']].astype(float)).fit()
 #    print(vntr_mod.summary())
     print('summary printed for ', vntr_mod.fvalue, vntr_mod.f_pvalue, tissue_name)
