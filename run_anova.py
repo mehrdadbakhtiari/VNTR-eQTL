@@ -25,7 +25,8 @@ caviar_top_1 = {}
 
 min_individuals_in_group = 4
 significance_threshold = 0.0005
-bootstrapping = True
+run_permutation_test = False
+bootstrapping = False
 
 highest_fs = 0
 lowest_p = 1e10
@@ -36,9 +37,11 @@ wgs_id_gtex_id_file = '../GTEX_sample_id_conversion.txt'
 vntr_models_dir = '/pedigree2/projects/adVNTR/vntr_data/hg38_selected_VNTRs_Illumina.db'
 
 snp_directory = '../files/phg000830.v1.GTEx_WGS.genotype-calls-vcf.c1/'
+snp_directory = '../files/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1/'
 snp_file = snp_directory + 'subset'
 snp_file = snp_directory + 'subset_100kb'
 original_snp_file = snp_directory + '652Ind_filtered_biallelic_snps_0.05maf'
+original_snp_file = snp_directory + 'plink_866Ind_filtered_biallelic_snps_0.05maf'
 
 try:
     gene_locations_obj = GeneLocations()
