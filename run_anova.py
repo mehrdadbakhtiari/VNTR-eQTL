@@ -231,7 +231,7 @@ def run_caviar(caviar_variants, caviar_zscores, gene_df, tissue_name, vntr_id):
         with open(z_file, 'w') as outfile:
             for i in range(len(caviar_variants)):
                 outfile.write('%s\t%s\n' % (caviar_variants[i], caviar_zscores[i]))
-        caviar_cmd = "CAVIAR -l %s -z %s -o %s -c 1 -f 1 > %s" % (ld_file, z_file, caviar_output, temp_dir+"log")
+        caviar_cmd = 'CAVIAR -l "%s" -z "%s" -o "%s" -c 1 -f 1 > "%s"' % (ld_file, z_file, caviar_output, temp_dir+"log")
         os.system(caviar_cmd)
 
     if not os.path.exists(caviar_post_file):
