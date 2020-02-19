@@ -303,12 +303,12 @@ def run_anova():
                 '%s: %s' % (reference_vntrs[vntr_id].chromosome, reference_vntrs[vntr_id].start_point))
             else:
                 run_anova_for_vntr(df, genotypes, vntr_id, tissue_name)
-        break
 
 
 def load_bjarni_genotypes():
 #    # res['BJARNI_0'][527655] = 2.5
     genotype_file = 'Bjarni/toMehrdad/VNTR_genotypes'
+    genotype_file = 'Bjarni/toMehrdad/GRCh38_Blood_VNTR_genotypes.txt'
     df = pd.read_csv(genotype_file, delimiter=' ', header=None)
 #    df = df.drop(columns=[1, 2, 3])
     df = df.set_index([0])
@@ -320,29 +320,52 @@ def load_bjarni_genotypes():
                 df[col][row] = sum([float(e) for e in df[col][row].split('/')])/ 2.0
     return df
 
+
 def run_anova_for_bjarni():
     genotypes_df = load_bjarni_genotypes()
 #    vntr_genotypes = get_vntr_alleles(genotypes)
     expression_file = 'Bjarni/toMehrdad/eMat_cropped'
+    expression_file = 'Bjarni/toMehrdad/Blood_VNTR-eQTLs_ENSEMBL87.table'
     df = pd.read_csv(expression_file, delimiter=' ', header=None)
     df = df.drop(columns=[1, 2, 3])
-    df = df.set_index([0])
-    df.columns = ['Bjarni_%s' % i for i in range(len(df.columns))]
+    df.columns = ['Gene'] + ['Bjarni_%s' % i for i in range(len(df.columns[1:]))]
+
+    # add a row for each peer factor
+    start_row = len(df.index)
+    peer_factor_map, peer_factors = load_peer_factors(file_name='peer_factors_Bjarni_3')
+    for i in range(0, len(peer_factors)):
+        peer_row = []
+        for j in range(1, len(df.columns)):
+            individual_id = str(int(df.columns[j][7:]) + 4)
+            peer_row.append(peer_factor_map[individual_id][peer_factors[i]])
+        df.loc[i + start_row] = [peer_factors[i]] + peer_row
+
+    df = df.set_index([df.columns[0]])
     df = df.transpose()
-#    for vntr_id, number_of_alleles in vntr_genotypes:
     pvalues = {}
+
+    gene_name_vntr_map = {}
+    with open('Blood_VNTR-eQTLs.txt') as infile:
+        blood_vntrs = [int(line.strip()) for line in infile.readlines()]
+    for r in reference_vntrs.values():
+        if r.id in blood_vntrs:
+            gene_name_vntr_map[r.gene_name] = r.id
+    df.columns = [gene_name_vntr_map[g] if not g.startswith('peer') else g for g in df.columns]
+
+    positives = 0
+    negatives = 0
     for vntr_id in df.columns:
-#        if vntr_id != 315000:
-#            continue
+        if str(vntr_id).startswith('peer_'):
+            continue
         if reference_vntrs[vntr_id].chromosome[3:] == 'Y':
             continue
         number_of_alleles = len(set([e for e in genotypes_df[vntr_id] if e not in ['None', None]]))
         if number_of_alleles <= 1:
             continue
-        gene_df = df.drop(columns=list([e for e in df.columns if e != vntr_id]))
+        gene_df = df.drop(columns=list([e for e in df.columns if e != vntr_id and not str(e).startswith('peer_')]))
         anova_target = 'expression_%s' % vntr_id
-        gene_df.columns = [anova_target]
-#        print(genotypes_df[vntr_id])
+        gene_df.columns = [anova_target] + list(gene_df.columns[1:])
+        gene_df[anova_target] = get_normalized_gene_expression(gene_df[anova_target])
         if 'None' in genotypes_df[vntr_id]:
             print('bad')
 
@@ -355,24 +378,26 @@ def run_anova_for_bjarni():
         for i in range(gene_df.shape[0]):
             if gene_df[vntr_genotype_title][i] in [None, 'None']:
                 to_remove.append(i)
- #       print(to_remove)
         gene_df.drop(gene_df.index[to_remove], inplace=True)
-        
-        vntr_mod = ols('%s ~ %s' % (anova_target, vntr_genotype_title), data=gene_df).fit()
+
+        confoudners_str = ' + '.join(peer_factors)#+pop_pcs
+        confounders_lm = ols('%s ~ %s' % (anova_target, confoudners_str), data=gene_df).fit()
+        gene_df['residuals'] = confounders_lm.resid
+
+        vntr_mod = ols('%s ~ %s' % ('residuals', vntr_genotype_title), data=gene_df).fit()
         pvalues[vntr_id] = vntr_mod.f_pvalue
-        if vntr_mod.f_pvalue < significance_threshold:
+
+        print(vntr_mod.f_pvalue < significance_threshold * 2, vntr_id,
+              '%s: %s' % (reference_vntrs[vntr_id].chromosome, reference_vntrs[vntr_id].start_point))
+        if vntr_mod.f_pvalue < significance_threshold * 2:
             print(vntr_id)
+            positives += 1
+        else:
+            negatives += 1
         continue
         run_anova_for_vntr(df, genotypes, vntr_id)
     print('------')
-    print(pvalues[690585]) # not mainly in blood
-    print(pvalues[315000])
-    print(pvalues[393574])
-    print(pvalues[316163])
-    print(pvalues[423956])
-    print(pvalues[386120])
-    print(pvalues[319811])
-    print(pvalues[273409])
+    print(positives, negatives)
 
 
 def run_anova_for_geuvadis():
