@@ -3,6 +3,7 @@ import os
 import operator
 import pandas as pd
 import numpy as np
+import math
 
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
@@ -20,11 +21,20 @@ beat_top_10_snps_vntrs = {}
 beat_top_20_snps_vntrs = {}
 beat_top_100_snps_vntrs = {}
 best_pvalues = {}
+best_pvalue_ranks = {}
 caviar_top_5 = {}
 caviar_top_1 = {}
+best_caviar_probs = {}
+best_caviar_ranks = {}
 
 min_individuals_in_group = 4
 significance_threshold = 0.0005
+thresholds = {}
+with open('thresholds.txt') as infile:
+    lines = infile.readlines()
+    for l in lines:
+        thresholds[l.split('\t')[0].replace(' ', '-')] = float(l.split('\t')[1])
+
 run_permutation_test = False
 bootstrapping = False
 
@@ -198,14 +208,14 @@ def get_caviar_ld_matrix(df, variant_titles):
         for v2 in variant_titles:
             X = df[v1].replace('None', np.nan).astype(float)
             Y = df[v2].replace('None', np.nan).astype(float)
-            if X.corr(Y) is np.nan:
+            if X.corr(Y) is np.nan or math.isnan(X.corr(Y)):
                 result[i].append(0.0)
             else:
                 result[i].append(X.corr(Y))
     return pd.DataFrame(result, columns=variant_titles, index=variant_titles)
 
 
-def lookfor (x, p):
+def lookfor(x, p):
     """look for occurence of x in frame column p and output now numb, ID and score"""
     for row in range(0,len(p.index)):
         if x in p.values[row][0]:
@@ -216,6 +226,7 @@ def lookfor (x, p):
 
 def run_caviar(caviar_variants, caviar_zscores, gene_df, tissue_name, vntr_id):
     rank = 1e10
+    top_vntr_score = 0
 
     tissue_name = tissue_name.replace(' ', '-')
     temp_dir = caviar_result_dir + '%s/%s/' % (tissue_name, vntr_id)
@@ -243,7 +254,7 @@ def run_caviar(caviar_variants, caviar_zscores, gene_df, tissue_name, vntr_id):
         I, topvntr, top_vntr_score = lookfor('%s' % vntr_id, post)
         rank = I + 1
 
-    return rank
+    return rank, top_vntr_score
 
 
 def get_vntr_alleles(genotypes):
@@ -262,7 +273,13 @@ def get_vntr_alleles(genotypes):
 def run_anova():
     genotypes = load_individual_genotypes(reference_vntrs)
     global best_pvalues
+    global best_pvalue_ranks
+    global best_caviar_ranks
+    global best_caviar_probs
     best_pvalues = {_id: 1 for _id in range(1000000)}
+    best_pvalue_ranks = {_id: 1e10 for _id in range(1000000)}
+    best_caviar_ranks = {_id: 1e10 for _id in range(1000000)}
+    best_caviar_probs = {_id: 0 for _id in range(1000000)}
 #    global beat_top_100_snps_vntrs
 #    global top_p_value_vntrs
 #    beat_top_100_snps_vntrs = {_id: set() for _id in range(1000000)}
@@ -280,7 +297,9 @@ def run_anova():
     important_vntr_ids = set([int(line.strip()) for line in lines if line.strip() != ''])
     print(important_vntr_ids)
 
-    tissue_name = 'Blood Vessel'
+    computed_tissues = [e[19:] for e in glob.glob('regression_results/*')]
+    print computed_tissues
+
     for tissue_name in tissue_names:
         tissue_rpkm_file = rpkm_directory + tissue_name + '.rpkm'
         df = pd.read_csv(tissue_rpkm_file, delimiter='\t', header=1)
@@ -293,7 +312,7 @@ def run_anova():
             if number_of_genotypes <= 1:
                 continue
             if vntr_id not in important_vntr_ids:
-               continue
+                continue
             if bootstrapping:
                 res = []
                 for k in range(100):
@@ -438,15 +457,19 @@ def run_anova_for_geuvadis():
 
     with open('Blood_VNTR-eQTLs.txt') as infile:
         blood_vntrs = [int(line.strip()) for line in infile.readlines()]
-    print(len(blood_vntrs))
+    print(len(blood_vntrs), len(vntr_genotypes))
 
     for vntr_id, number_of_genotypes in vntr_genotypes:
         if reference_vntrs[vntr_id].chromosome[3:] == 'Y':
             continue
-        if vntr_id not in blood_vntrs:
+        if vntr_id not in blood_vntrs: # TODO: temporary
             continue
         if number_of_genotypes <= 1:
             continue
+        tissue_name = 'Whole Blood'
+        p_value_file = 'geuvadis_all_vntr_pvalues/%s/%s/pvalues.txt' % (tissue_name, vntr_id)
+#        if os.path.exists(p_value_file) and os.path.getsize(p_value_file) > 0: #TODO: Temporary
+#            continue
         gene_name = reference_vntrs[vntr_id].gene_name.replace('-', '__')
 
         gene_df = expression_df.loc[expression_df['Gene_Symbol'] == gene_name]
@@ -454,6 +477,8 @@ def run_anova_for_geuvadis():
             print('no expression')
             # don't have expression for this gene
             continue
+        while gene_df.shape[0] != 1:
+            gene_df.drop(gene_df.index[[1]], inplace=True)
 
         gene_df = gene_df.reset_index()
         gene_df.drop(columns=['TargetID', 'Chr', 'Coord', 'index'], inplace=True)
@@ -468,17 +493,71 @@ def run_anova_for_geuvadis():
                 to_drop_cols.append(col)
         gene_df = gene_df.drop(columns=to_drop_cols)
 
+        # add a row for each peer factor
+        start_row = 2
+        peer_factor_map, peer_factors = load_peer_factors(file_name='peer_factors_Geuvadis_15')
+        for i in range(0, len(peer_factors)):
+            peer_row = []
+            for j in range(1, len(gene_df.columns)):
+                individual_id = gene_df.columns[j]
+                peer_row.append(peer_factor_map[individual_id][peer_factors[i]])
+            gene_df.loc[i + start_row] = [peer_factors[i]] + peer_row
+
+        # add a row for each population pc
+        start_row = 2 + len(peer_factors)
+        pop_pc_map, pop_pcs = load_population_pcs('1KG_PCA_results/pca.gtex.pca.evec')
+        for i in range(0, len(pop_pcs)):
+            pop_row = []
+            for j in range(1, len(gene_df.columns)):
+                individual_id = gene_df.columns[j]
+                if individual_id not in pop_pc_map.keys():
+                    pop_row.append(0)
+                else:
+                    pop_row.append(pop_pc_map[individual_id][pop_pcs[i]])
+            gene_df.loc[i + start_row] = [pop_pcs[i]] + pop_row
+
         gene_df = gene_df.set_index('Gene_Symbol').transpose()
 
         if (np.median(gene_df[gene_name]) == 0):
-            print(ensembl_ids[gene_name], 'no expression')
+            print(ensembl_ids[gene_name], 'gene not expression')
             # gene is not expressed
             continue
         gene_df[gene_name] = get_normalized_gene_expression(gene_df[gene_name])
 
-        # print(gene_df)
-        vntr_mod = ols('%s ~ %s' % (gene_name, vntr_genotype_title), data=gene_df).fit()
-        print(vntr_mod.f_pvalue < significance_threshold*2, vntr_mod.f_pvalue, ensembl_ids[gene_name], vntr_id, '%s: %s' % (reference_vntrs[vntr_id].chromosome, reference_vntrs[vntr_id].start_point))
+        confoudners_str = ' + '.join(peer_factors + pop_pcs)
+        confounders_lm = ols('%s ~ %s' % (gene_name, confoudners_str), data=gene_df).fit()
+        gene_df['residuals'] = confounders_lm.resid
+
+
+        tissue_name = 'Whole Blood'
+        if run_permutation_test:
+            for i in range(100):
+                gene_df['shuffled_genotypes'] = np.random.permutation(list(gene_df[vntr_genotype_title]))
+                permutated_mod = ols('%s ~ %s' % ('residuals', 'shuffled_genotypes'), data=gene_df).fit()
+                permutated_pvalue_file = '/mnt/geuvadis_permutated_pvalues_multiple_tests/permutated_pvalues_%s/%s/%s/permutated_pvalues.txt' % (i, tissue_name, vntr_id)
+                if not os.path.exists(os.path.dirname(permutated_pvalue_file)):
+                    os.makedirs(os.path.dirname(permutated_pvalue_file))
+                with open(permutated_pvalue_file, 'w') as outfile:
+                    outfile.write('%s\n' % permutated_mod.f_pvalue)
+
+        vntr_mod = ols('%s ~ %s' % ('residuals', vntr_genotype_title), data=gene_df).fit()
+        print(vntr_mod.f_pvalue < 0.0023370968265774856, vntr_mod.f_pvalue, ensembl_ids[gene_name], vntr_id, '%s: %s' % (reference_vntrs[vntr_id].chromosome, reference_vntrs[vntr_id].start_point))
+
+        p_value_file = 'geuvadis_all_vntr_pvalues/%s/%s/pvalues.txt' % (tissue_name, vntr_id)
+        if not os.path.exists(os.path.dirname(p_value_file)):
+            os.makedirs(os.path.dirname(p_value_file))
+        with open(p_value_file, 'w') as outfile:
+            outfile.write('%s\n' % vntr_mod.f_pvalue)
+
+        regression_results = 'geuvadis_regression_results/%s/%s.txt' % ('Whole Blood'.replace(' ', '-'), vntr_id)
+        if not os.path.exists(os.path.dirname(regression_results)):
+            os.makedirs(os.path.dirname(regression_results))
+        with open(regression_results, 'w') as outfile:
+            outfile.write('%s\t%s\t%s\t%s\t%s\t%s\n' % (gene_name, reference_vntrs[vntr_id].chromosome,
+                                                        reference_vntrs[vntr_id].start_point,
+                                                        vntr_mod.params[vntr_genotype_title],
+                                                        vntr_mod.f_pvalue, vntr_mod.bse[vntr_genotype_title]))
+
         # run_anova_for_vntr(df, genotypes, vntr_id, tissue_name)
 
 
@@ -528,11 +607,14 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
     vntr_genotype_title = '%s_%s_Genotype' % (gene_name, vntr_id)
     gene_df.loc[1] = [vntr_genotype_title] + genotypes_row
 
+    normalized_expressions = get_normalized_gene_expression(gene_df.loc[0][1:])
+    all_genotypes = sorted(list(set([e for e in genotypes_row if e is not None])))
+    plot_data = [[normalized_expressions[i] for i in range(len(normalized_expressions)) if genotypes_row[i] == repeat_count] for repeat_count in all_genotypes]
+
     for i in range(len(genotypes_row)):
         if genotypes_row.count(genotypes_row[i]) < min_individuals_in_group:
             genotypes_row[i] = None
     found_genotypes = sorted(list(set([e for e in genotypes_row if e is not None])))
-    # print('found_genotypes:', found_genotypes)
     if len(found_genotypes) < 2:
         # only one genotype for this VNTR
         return
@@ -576,32 +658,33 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
         return
 
     temp[gene_name] = get_normalized_gene_expression(temp[gene_name])
-
     groups = [list(temp.loc[temp['%s' % vntr_genotype_title] == repeat_count]['%s' % gene_name]) for repeat_count in found_genotypes]
-
-    anova_target = gene_name
     anova_target = 'residuals'
 
     # find residuals
     confoudners_str = ' + '.join(pop_pcs + peer_factors)
     confounders_lm = ols('%s ~ %s' % (gene_name, confoudners_str), data=temp).fit()
     temp['residuals'] = confounders_lm.resid
-#    print(temp)
 
     temp['const'] = 1
-    print(temp.shape)
-#    print(vntr_genotype_title)
     vntr_mod = ols('%s ~ %s' % (anova_target, vntr_genotype_title), data=temp).fit()
 
     if bootstrapping:
         return vntr_mod.f_pvalue
 
-#    vntr_mod = sm.OLS(temp[gene_name].astype(float), temp[[vntr_genotype_title, 'const']].astype(float)).fit()
-#    print(vntr_mod.summary())
-    print('summary printed for ', vntr_mod.fvalue, vntr_mod.f_pvalue, tissue_name)
-#    aov_table = sm.stats.anova_lm(vntr_mod)
-#    print(aov_table)
+    if run_permutation_test:
+        for i in range(100):
+            temp['shuffled_genotypes'] = np.random.permutation(list(temp[vntr_genotype_title]))
 
+            permutated_mod = ols('%s ~ %s' % (anova_target, 'shuffled_genotypes'), data=temp).fit()
+
+            permutated_pvalue_file = '/mnt/permutated_pvalues_multiple_tests/permutated_pvalues_%s/%s/%s/permutated_pvalues.txt' % (i, tissue_name, vntr_id)
+            if not os.path.exists(os.path.dirname(permutated_pvalue_file)):
+                os.makedirs(os.path.dirname(permutated_pvalue_file))
+            with open(permutated_pvalue_file, 'w') as outfile:
+                outfile.write('%s\n' % permutated_mod.f_pvalue)
+
+    print('summary printed for ', vntr_mod.fvalue, vntr_mod.f_pvalue, tissue_name, vntr_id)
     print('DONE with OLS, starting ols for SNPs')
 
     p_value_file = 'all_vntr_pvalues/%s/%s/pvalues.txt' % (tissue_name, vntr_id)
@@ -625,8 +708,7 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
                                     reference_vntrs[vntr_id].start_point, vntr_mod.params[vntr_genotype_title],
                                     vntr_mod.f_pvalue, vntr_mod.bse[vntr_genotype_title]))
 
-    return
-    if vntr_mod.f_pvalue > significance_threshold:
+    if vntr_mod.f_pvalue > thresholds[tissue_name.replace(' ', '-')]:
         print('not a significant VNTR for sure')
         return
 
@@ -643,6 +725,9 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
         return
     print('snps are loaded')
     snp_titles = []
+    drop_list = ["GTEX-11DXY", "GTEX-12BJ1", "GTEX-13NYS", "GTEX-13O1R", "GTEX-14A5I", "GTEX-14ICL", "GTEX-14PHW", "GTEX-16Z82", "GTEX-OHPK", "GTEX-QLQW", "GTEX-YFCO", "GTEX-ZVTK"]
+    drop_list = [e for e in drop_list if e in temp.index]
+    temp = temp.drop(drop_list)
     for i in range(len(snps)):
         snp_column = [snp_map[individual_id][snps[i]] for individual_id in temp.index]
         snp_titles.append('SNP_%s' % snps[i].split('_')[1])
@@ -650,14 +735,17 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
 
     best_snp_p = 1e9
     best_snp_f = 0
-    best_snp = None
 
     snp_linear_models = []
+    vntr_pvalue_rank = 1
     for snp_id in snp_titles:
         snp_mod = ols('%s ~ %s' % (anova_target, snp_id), data=temp).fit()
         snp_mod = sm.OLS(temp[anova_target], temp[[snp_id, 'const']]).fit()
         snp_linear_models.append((snp_mod.f_pvalue, snp_id, snp_mod))
+        if snp_mod.f_pvalue < vntr_mod.f_pvalue:
+            vntr_pvalue_rank += 1
         variant_pvalues.append((snp_id, snp_mod.f_pvalue))
+    best_pvalue_ranks[vntr_id] = min(vntr_pvalue_rank, best_pvalue_ranks[vntr_id])
 
     p_value_file = 'pvalues/%s/%s/pvalues.txt' % (tissue_name, vntr_id)
     if not os.path.exists(os.path.dirname(p_value_file)):
@@ -693,14 +781,17 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
         if vntr_contribution_result[1] > 0.05 and counter < 100:
             beat_100 = False
 
-        if counter < 100:
+        import math
+        if counter < 100 and not math.isnan(get_caviar_zscore(snp_mod, snp_id)):
             caviar_variants.append(snp_id)
             caviar_zscores.append(get_caviar_zscore(snp_mod, snp_id))
 
 #        anova_results = sm.stats.anova_lm(snp_mod, snp_vntr_lm)
         counter += 1
 
-    causality_rank = run_caviar(caviar_variants, caviar_zscores, temp, tissue_name, vntr_id)
+    causality_rank, causality_prob = run_caviar(caviar_variants, caviar_zscores, temp, tissue_name, vntr_id)
+    best_caviar_ranks[vntr_id] = min(causality_rank, best_caviar_ranks[vntr_id])
+    best_caviar_probs[vntr_id] = max(causality_prob, best_caviar_probs[vntr_id])
     global caviar_top_5
     global caviar_top_1
     if causality_rank <= 5:
@@ -708,7 +799,7 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
     if causality_rank == 1:
         add_tissue(caviar_top_1, vntr_id, tissue_name)
 
-    significant_vntr = vntr_mod.f_pvalue < significance_threshold
+    significant_vntr = vntr_mod.f_pvalue < thresholds[tissue_name.replace(' ', '-')]
     print('significant_vntr: ', significant_vntr)
     print('best_snp info: ', best_snp_f, best_snp_p)
     fs, pv = vntr_mod.fvalue, vntr_mod.f_pvalue
@@ -722,6 +813,7 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
     if pv < lowest_p:
         lowest_p = pv
     smallest_group = 1e10
+
     for g in groups:
         smallest_group = min(smallest_group, len(g))
     if significant_vntr and smallest_group >= min_individuals_in_group:
@@ -745,8 +837,8 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
         if not os.path.exists(os.path.dirname(expression_correlation_file)):
             os.makedirs(os.path.dirname(expression_correlation_file))
         with open(expression_correlation_file, 'w') as outfile:
-            for i, g in enumerate(groups):
-                outfile.write('%s %s\n' % (found_genotypes[i], ','.join([str(e) for e in g])))
+            for i, g in enumerate(plot_data):
+                outfile.write('%s %s\n' % (all_genotypes[i], ','.join([str(e) for e in g])))
                 print(g)
                 if len(g) > 0:
                     print(get_average(g))
@@ -755,8 +847,9 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
 
 
 if __name__ == '__main__':
-    run_anova_for_bjarni()
-    exit(0)
+    # run_anova_for_geuvadis()
+    # run_anova_for_bjarni()
+    # exit(0)
     run_anova()
     print(highest_fs)
     print(lowest_p)
@@ -769,11 +862,18 @@ if __name__ == '__main__':
     print('caviar_top_1: %s: ' % len(caviar_top_1.keys()))
     print('caviar_top_5: %s: ' % len(caviar_top_5.keys()))
 
-    all_vntrs = sorted(list(set(top_p_value_vntrs.keys() + beat_top_10_snps_vntrs.keys() + beat_top_20_snps_vntrs.keys() + beat_top_100_snps_vntrs.keys())))
+    all_vntrs = sorted(list(set(significant_vntrs.keys() + top_p_value_vntrs.keys() + beat_top_10_snps_vntrs.keys() + beat_top_20_snps_vntrs.keys() + beat_top_100_snps_vntrs.keys())))
+
+    # with open('causal_vntrs.txt', 'w') as outfile:
+    #     for vntr_id in all_vntrs:
+    #         outfile.write('%s\t%s\t%s\n' % (vntr_id, best_caviar_ranks[vntr_id], best_caviar_probs[vntr_id]))
+
     for vntr_id in all_vntrs:
-        print('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' % (vntr_id, reference_vntrs[vntr_id].gene_name, reference_vntrs[vntr_id].annotation,
+        print('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t' % (vntr_id, reference_vntrs[vntr_id].gene_name, reference_vntrs[vntr_id].annotation,
               reference_vntrs[vntr_id].pattern, best_pvalues[vntr_id], ','.join(top_p_value_vntrs[vntr_id]) if vntr_id in top_p_value_vntrs.keys() else '-',
               ','.join(beat_top_100_snps_vntrs[vntr_id]) if vntr_id in beat_top_100_snps_vntrs.keys() else '-',
               ','.join(beat_top_20_snps_vntrs[vntr_id]) if vntr_id in beat_top_20_snps_vntrs.keys() else '-',
-              ','.join(beat_top_10_snps_vntrs[vntr_id]) if vntr_id in beat_top_10_snps_vntrs.keys() else '-'))
+              ','.join(beat_top_10_snps_vntrs[vntr_id]) if vntr_id in beat_top_10_snps_vntrs.keys() else '-',
+              ','.join(caviar_top_1[vntr_id]) if vntr_id in caviar_top_1.keys() else '-',
+              best_pvalue_ranks[vntr_id], best_caviar_ranks[vntr_id], best_caviar_probs[vntr_id]))
 
