@@ -14,6 +14,7 @@ def load_pvalues_in_directory(dir, file_name_suffix, tissue_name):
             continue
         vntr_dirs = glob.glob(tissue_dir + '/*')
         for vntr_dir in vntr_dirs:
+            vntr_id = int(vntr_dir.split('/')[-1])
             file_name = vntr_dir + '/' + file_name_suffix
             with open(file_name) as input:
                 pvalue = float(input.readlines()[0].strip())
@@ -71,6 +72,11 @@ def plot_qq_plot(pvalues, permuted_pvalues_list, significance_cutoff, tissue_nam
     plt.scatter(grid, -np.log10(np.array(sorted(pvalues, reverse=False))), label=identified_label, zorder=3, marker=marker)
     plt.scatter(grid, permutation_averages, label=permuted_label, marker='.', zorder=1, color='gray')
 
+    plt.gca().spines['bottom'].set_color('black')
+    plt.gca().spines['left'].set_color('black')
+    plt.gca().spines['top'].set_color('black')
+    plt.gca().spines['right'].set_color('black')
+
     # ax = sns.scatterplot(grid, -np.log10(np.array(sorted(pvalues, reverse=False))), label='identified genotypes', marker='.')
 
     plt.legend(ncol=2, fontsize=4)
@@ -123,13 +129,13 @@ def find_cutoff(tissue_name, tissue_number=None, geuvadis=False):
     fillings = ['left', 'right', 'top', 'full']
     filling = fillings[tissue_number / 12] if tissue_number is not None else 'full'
     filling = 'full'
-    plot_qq_plot(pvalues, permuted_pvalues, -log(res, 10), tissue_name, filling=filling)
+#    plot_qq_plot(pvalues, permuted_pvalues, -log(res, 10), tissue_name, filling=filling)
     return res
 
 tissue_dirs = glob.glob('all_vntr_pvalues/*')
 tissue_names = [e.split('/')[-1] for e in tissue_dirs]
 
-find_cutoff('Whole Blood', 0, geuvadis=True)
+#find_cutoff('Whole Blood', 0, geuvadis=True)
 
 for i, tname in enumerate(tissue_names):
     print(tname)
