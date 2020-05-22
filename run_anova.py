@@ -44,7 +44,8 @@ VNTR_genotypes_dir = '../gtex_genotypes/'
 genotypes_dir_1kg = '../1kg_advntr_genotype/'
 #VNTR_genotypes_dir = '/pedigree2/projects/adVNTR/gtex_genotypes/'
 wgs_id_gtex_id_file = '../GTEX_sample_id_conversion.txt'
-vntr_models_dir = '/pedigree2/projects/adVNTR/vntr_data/hg38_selected_VNTRs_Illumina.db'
+# vntr_models_dir = '/pedigree2/projects/adVNTR/vntr_data/hg38_selected_VNTRs_Illumina.db'
+vntr_models_dir = '/home/mehrdad/workspace/adVNTR/vntr_data/hg38_selected_VNTRs_Illumina.db.bck'
 
 snp_directory = '../files/phg000830.v1.GTEx_WGS.genotype-calls-vcf.c1/'
 snp_directory = '../files/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1/'
@@ -317,7 +318,6 @@ def run_anova():
                 res = []
                 for k in range(100):
                     res.append(run_anova_for_vntr(df, genotypes, vntr_id, tissue_name))
-                # print(res, significance_threshold)
                 print(sum([1 if (e < significance_threshold * 2) else 0 for e in res]), vntr_id,
                 '%s: %s' % (reference_vntrs[vntr_id].chromosome, reference_vntrs[vntr_id].start_point))
             else:
@@ -371,10 +371,21 @@ def run_anova_for_bjarni():
             gene_name_vntr_map[r.gene_name] = r.id
     df.columns = [gene_name_vntr_map[g] if not g.startswith('peer') else g for g in df.columns]
 
+    het_test = {}
+    with open('heterozygosity_test.txt') as infile:
+        lines = infile.readlines()
+        for l in lines:
+            vid, pval = l.split()
+            vid = int(vid)
+            pval = float(pval)
+            het_test[vid] = pval
+
     positives = 0
     negatives = 0
     for vntr_id in df.columns:
         if str(vntr_id).startswith('peer_'):
+            continue
+        if het_test[vntr_id] < 0.05:
             continue
         if reference_vntrs[vntr_id].chromosome[3:] == 'Y':
             continue
@@ -398,18 +409,25 @@ def run_anova_for_bjarni():
             if gene_df[vntr_genotype_title][i] in [None, 'None']:
                 to_remove.append(i)
         gene_df.drop(gene_df.index[to_remove], inplace=True)
+        gene_df[vntr_genotype_title] = np.array(gene_df[vntr_genotype_title], dtype='float')
 
         confoudners_str = ' + '.join(peer_factors)#+pop_pcs
         confounders_lm = ols('%s ~ %s' % (anova_target, confoudners_str), data=gene_df).fit()
-        gene_df['residuals'] = confounders_lm.resid
+        gene_df['residuals'] = np.array(confounders_lm.resid, dtype='float')
 
+        gene_df['const'] = 1
         vntr_mod = ols('%s ~ %s' % ('residuals', vntr_genotype_title), data=gene_df).fit()
         pvalues[vntr_id] = vntr_mod.f_pvalue
 
+        with open('regression_results/Whole-Blood/%s.txt' % vntr_id) as infile:
+            original_effect_size = float(infile.readlines()[0].split('\t')[3])
+        effect_size = vntr_mod.params[vntr_genotype_title]
         print(vntr_mod.f_pvalue < significance_threshold * 2, vntr_id,
               '%s: %s' % (reference_vntrs[vntr_id].chromosome, reference_vntrs[vntr_id].start_point))
         if vntr_mod.f_pvalue < significance_threshold * 2:
             print(vntr_id)
+            if original_effect_size * effect_size < 0:
+                print('not matching effect size direction for %s', vntr_id)
             positives += 1
         else:
             negatives += 1
@@ -459,10 +477,22 @@ def run_anova_for_geuvadis():
         blood_vntrs = [int(line.strip()) for line in infile.readlines()]
     print(len(blood_vntrs), len(vntr_genotypes))
 
+    het_test = {}
+    with open('heterozygosity_test.txt') as infile:
+        lines = infile.readlines()
+        for l in lines:
+            vid, pval = l.split()
+            vid = int(vid)
+            pval = float(pval)
+            het_test[vid] = pval
+
+    positive, negative = 0, 0
     for vntr_id, number_of_genotypes in vntr_genotypes:
         if reference_vntrs[vntr_id].chromosome[3:] == 'Y':
             continue
         if vntr_id not in blood_vntrs: # TODO: temporary
+            continue
+        if het_test[vntr_id] < 0.05:
             continue
         if number_of_genotypes <= 1:
             continue
@@ -543,6 +573,16 @@ def run_anova_for_geuvadis():
         vntr_mod = ols('%s ~ %s' % ('residuals', vntr_genotype_title), data=gene_df).fit()
         print(vntr_mod.f_pvalue < 0.0023370968265774856, vntr_mod.f_pvalue, ensembl_ids[gene_name], vntr_id, '%s: %s' % (reference_vntrs[vntr_id].chromosome, reference_vntrs[vntr_id].start_point))
 
+        with open('regression_results/Whole-Blood/%s.txt' % vntr_id) as infile:
+            original_effect_size = float(infile.readlines()[0].split('\t')[3])
+        effect_size = vntr_mod.params[vntr_genotype_title]
+        if effect_size * original_effect_size < 0:
+            print('vntr %s have different association direction' % vntr_id)
+        if vntr_mod.f_pvalue < 0.0023370968265774856:
+            positive += 1
+        else:
+            negative += 1
+
         p_value_file = 'geuvadis_all_vntr_pvalues/%s/%s/pvalues.txt' % (tissue_name, vntr_id)
         if not os.path.exists(os.path.dirname(p_value_file)):
             os.makedirs(os.path.dirname(p_value_file))
@@ -559,6 +599,7 @@ def run_anova_for_geuvadis():
                                                         vntr_mod.f_pvalue, vntr_mod.bse[vntr_genotype_title]))
 
         # run_anova_for_vntr(df, genotypes, vntr_id, tissue_name)
+    print(positive, negative)
 
 
 # normalize expression values by fitting them to a normal distribution
