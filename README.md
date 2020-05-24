@@ -9,7 +9,7 @@ Scripts for analyzing VNTR-eQTLs in GTEx cohort for the [paper](http://biorxiv.o
 
 # Output of the pipeline
 Linear regression results showing association of the length of each VNTR with the expression level of its nearest gene in each of the 46 tissues.
-The pipeline will create a directory called regression_results for the output. It contains 46 subdirectories (one for each tissue) and each of them have a tab separated file for each VNTR showing linear test for the VNTR in the corresponding tissue.
+The pipeline will create a directory called `regression_results` for the output. It contains 46 subdirectories (one for each tissue) and each of them have a tab separated file for each VNTR showing linear test for the VNTR in the corresponding tissue.
 ```
 regression_results
 └───Whole-Blood
@@ -29,4 +29,27 @@ Each text file contains 6 tab separated values: <br>
 Genename  Chromosome  VNTR Coordinate Start   Effect Size (B)   P-value   Standard Error (Bse)
 ```
 
+For example, `regression_results/Whole-Blood/423956.txt` (result of the association test for VNTR 423956 in Whole Blood) has the following content:
+```
+POMC    chr2    25161573        0.21607193665873414     9.109131954009228e-06   0.048056165330533064
+```
+
+# Requirements
+1. eigensoft. this can be installed with `apt install eigensoft` on linux or `conda install -c bioconda/label/cf201901 eigensoft` using conda package manager on suported systems.
+2. 
+
 # How to run
+### Preprocessing
+```
+python extract_expression_by_tissue.py
+```
+### Finding population structure
+```
+./principal_component_identification.sh
+```
+### Computing PEER factors
+```
+python peer_factor_identification.py
+```
+### Running association test
+### Identifying significance threshold (5% FDR)
