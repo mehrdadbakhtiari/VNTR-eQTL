@@ -26,6 +26,9 @@ def compute_peer_factors(tissue_name='Blood Vessel'):
     peer_result_file = result_dir + 'peer_factors_%s_%s' % (tissue_name, K)
     if os.path.exists(peer_result_file):
         return
+    dirname = os.path.dirname(peer_result_file)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
 #    y = SP.loadtxt(tissue_rpkm_file, delimiter="\t")
 #    print(y)
     df = pd.read_csv(tissue_rpkm_file, delimiter='\t', header=1)

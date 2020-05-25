@@ -2,6 +2,7 @@ rna_table_file = '../Sra_table_RNA-Seq_only'
 rpkm_file = '../files/phe000020.v1.GTEx_RNAseq.expression-data-matrixfmt.c1/GTEx_Data_20160115_v7_RNAseq_RNASeQCv1.1.8_gene_rpkm.gct'
 expression_by_tissue_dir = '../Expression_by_Subtissue/'
 
+import os
 import sys
 if (sys.argv) >= 4:
     rna_table_file = sys.argv[1]
