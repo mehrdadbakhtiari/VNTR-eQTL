@@ -1,5 +1,5 @@
 # VNTR-eQTL
-Scripts for analyzing VNTR-eQTLs in GTEx cohort for the [paper](http://biorxiv.org) (link to be added soon)
+Scripts for analyzing VNTR-eQTLs in GTEx cohort [(link to the paper)]( https://biorxiv.org/cgi/content/short/2020.05.25.114082v1)
 
 # Inputs of the pipeline
 1. VNTR genotypes of the entire GTEx cohort as outputted by [adVNTR](https://github.com/mehrdadbakhtiari/adVNTR) in the default format (one text file for each individual) using WGS data aligned to GRCh38 (available from dbGaP phs000424.v7.p2).
