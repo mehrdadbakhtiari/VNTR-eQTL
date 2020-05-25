@@ -2,6 +2,7 @@ import matplotlib
 matplotlib.use('Agg')
 
 import os
+import sys
 
 import peer
 import scipy as SP
@@ -10,6 +11,10 @@ import pandas as pd
 
 
 result_dir = 'PEER_results/'
+rpkm_dir = '../Expression_by_Subtissue/'
+if len(sys.argv) >= 3:
+    rpkm_dir = sys.argv[1] + '/'
+    result_dir = sys.argv[2] + '/'
 
 
 def plot_Alpha(Alpha, color="blue"):
@@ -21,7 +26,7 @@ def plot_Alpha(Alpha, color="blue"):
 
 
 def compute_peer_factors(tissue_name='Blood Vessel'):
-    tissue_rpkm_file = '../Expression_by_Subtissue/%s.rpkm' % tissue_name
+    tissue_rpkm_file = rpkm_dir + '%s.rpkm' % tissue_name
     K = 15
     peer_result_file = result_dir + 'peer_factors_%s_%s' % (tissue_name, K)
     if os.path.exists(peer_result_file):
@@ -160,7 +165,7 @@ if __name__ == '__main__':
     compute_peer_factors_bjarni()
     exit(0)
     import glob
-    expression_files = glob.glob('../Expression_by_Subtissue/*')
+    expression_files = glob.glob(rpkm_dir + '/*')
     tissue_names = [ef.split('/')[-1][:-5] for ef in expression_files]
     for tissue in tissue_names:
         compute_peer_factors(tissue_name=tissue)

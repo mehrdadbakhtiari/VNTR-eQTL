@@ -4,10 +4,10 @@ expression_by_tissue_dir = '../Expression_by_Subtissue/'
 
 import os
 import sys
-if (sys.argv) >= 4:
+if len(sys.argv) >= 4:
     rna_table_file = sys.argv[1]
     rpkm_file = sys.argv[2]
-    expression_by_tissue_dir = sys.argv[3]
+    expression_by_tissue_dir = sys.argv[3] + '/'
 
 protein_id_to_gene = {}
 

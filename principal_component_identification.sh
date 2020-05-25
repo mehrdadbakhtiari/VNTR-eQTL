@@ -7,6 +7,7 @@ PRUNED_PED_FILE=${GTEXDIR}/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1/plink_
 PRUNED_MAP_FILE=${GTEXDIR}/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1/plink_866Ind_filtered_biallelic_snps_0.05maf.map
 
 ALLPREFIX=PCA_results/pca
+ALLPREFIX=$1/pca
 
 # Convert to eigstrat format
 parfile=convertf_parfile_v2.txt
