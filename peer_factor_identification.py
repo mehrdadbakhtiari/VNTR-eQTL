@@ -137,7 +137,7 @@ def eps_prior_demo():
             print "Eps pa=%.4f pb=%.4f mean(residuals^2)=%.4f"%(pa, pb, SP.mean(model.getResiduals()**2))
 
 
-def compute_peer_factors_bjarni():
+def compute_peer_factors_icelandic():
     rpkm_file = 'Bjarni/toMehrdad/Blood_VNTR-eQTLs_ENSEMBL87.table'
     K = 3
     peer_result_file = 'peer_factors_%s_%s' % ('Bjarni', K)
@@ -162,8 +162,7 @@ def compute_peer_factors_bjarni():
 
 
 if __name__ == '__main__':
-    compute_peer_factors_bjarni()
-    exit(0)
+    #compute_peer_factors_icelandic()
     import glob
     expression_files = glob.glob(rpkm_dir + '/*')
     tissue_names = [ef.split('/')[-1][:-5] for ef in expression_files]
