@@ -30,14 +30,17 @@ Each text file contains 6 tab separated values: <br>
 Genename  Chromosome  VNTR Coordinate Start   Effect Size (B)   P-value   Standard Error (Bse)
 ```
 
-For example, `regression_results/Whole-Blood/423956.txt` (result of the association test for VNTR 423956 in Whole Blood) has the following content:
+For example, `regression_results/Whole-Blood/423956.txt` (result of the association test for VNTR 423956 in Whole Blood) will have the following content:
 ```
 POMC    chr2    25161573        0.21607193665873414     9.109131954009228e-06   0.048056165330533064
 ```
 
 # Requirements
-1. eigensoft. this can be installed with `apt install eigensoft` on linux or `conda install -c bioconda/label/cf201901 eigensoft` using conda package manager on suported systems.
-2. 
+1. [adVNTR](https://github.com/mehrdadbakhtiari/adVNTR): this can be installed with `conda config --add channels bioconda; conda install advntr`
+2. [eigensoft](https://github.com/DReichLab/EIG): this can be installed with `apt install eigensoft` on linux or `conda install -c bioconda/label/cf201901 eigensoft` using conda package manager on supported systems.
+3. [PEER](https://github.com/PMBio/peer): to correct for non genetic factors affecting gene expression level.
+4. Python libraries: [statsmodels](https://www.statsmodels.org/stable/index.html), pandas, numpy <br>
+These can be installed with `pip install pandas numpy statsmodels` using `pip` or with `conda install -c conda-forge statsmodels` using `conda`.
 
 # How to run
 ### Preprocessing
