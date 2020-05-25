@@ -1,10 +1,10 @@
 #!/bin/bash
 
 GTEXDIR=../files/
-VCFFILE=${GTEXDIR}/phg000830.v1.GTEx_WGS.genotype-calls-vcf.c1/GTEx_Analysis_2016-01-15_v7_WholeGenomeSeq_652Ind_GATK_HaplotypeCaller.vcf.gz
+VCFFILE=${GTEXDIR}/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_866Indiv.vcf.gz
 SAMPLEFILE=${GTEXDIR}/phs000424.v7.pht002742.v7.p2.c1.GTEx_Subject_Phenotypes.GRU.txt
-PRUNED_PED_FILE=${GTEXDIR}/phg000830.v1.GTEx_WGS.genotype-calls-vcf.c1/652Ind_filtered_biallelic_snps_0.05maf.ped2
-PRUNED_MAP_FILE=${GTEXDIR}/phg000830.v1.GTEx_WGS.genotype-calls-vcf.c1/652Ind_filtered_biallelic_snps_0.05maf.map
+PRUNED_PED_FILE=${GTEXDIR}/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1/plink_866Ind_filtered_biallelic_snps_0.05maf.ped
+PRUNED_MAP_FILE=${GTEXDIR}/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1/plink_866Ind_filtered_biallelic_snps_0.05maf.map
 
 ALLPREFIX=PCA_results/pca
 
