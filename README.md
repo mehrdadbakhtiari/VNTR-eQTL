@@ -51,27 +51,29 @@ python extract_expression_by_tissue.py Sra_table_RNA-Seq_only rpkm_file.gct Expr
 ```
 `Expression_by_Subtissue` will contain `Whole Blood.rpkm`, `Brain - Cortex.rpkm`, etc.
 
-3. To select VNTR loci for association test, we run a heterozygosity test to remove erroneous genotypes and etc:
+3. To convert microarray genotypes to plink format and keep common variants to infer population structure, run following:
 ```
-```
-
-4. To convert microarray genotypes to plink format and keep common variants to infer population structure, run following:
-```
+vcftools --gzvcf GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_866Indiv.vcf.gz --recode --maf 0.05 --remove-filtered-all --out filtered_snps
+plink --vcf filtered_snps.vcf --biallelic-only --maf 0.05 --recode --out plink_866Ind_filtered_biallelic_snps_0.05maf
 ```
 
 ### Finding population structure
+set `GTEXDIR` to parent directory of GTEx dataset in the `principal_component_identification.sh` scripts and run PCA and store results in `PCA_results` directory:
 ```
-./principal_component_identification.sh
+./principal_component_identification.sh PCA_results
 ```
 ### Computing PEER factors
+Run PEER factor identification scripts for each tissue (`Expression_by_Subtissue` directory was specified in preprocessing-part2).
 ```
-python peer_factor_identification.py
+python peer_factor_identification.py Expression_by_Subtissue PEER_results
 ```
 ### Running association test
+This step will generate the `regression_results`
 ```
 python run_regression.py
 ```
 ### Identifying significance threshold (5% FDR)
+Run following script to identify tissue-specific significance thresholds.
 ```
 compute_significance_cutoff.py
 ```
