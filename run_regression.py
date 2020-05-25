@@ -324,7 +324,7 @@ def run_anova():
                 run_anova_for_vntr(df, genotypes, vntr_id, tissue_name)
 
 
-def load_bjarni_genotypes():
+def load_icelandic_genotypes():
 #    # res['BJARNI_0'][527655] = 2.5
     genotype_file = 'Bjarni/toMehrdad/VNTR_genotypes'
     genotype_file = 'Bjarni/toMehrdad/GRCh38_Blood_VNTR_genotypes.txt'
@@ -340,8 +340,8 @@ def load_bjarni_genotypes():
     return df
 
 
-def run_anova_for_bjarni():
-    genotypes_df = load_bjarni_genotypes()
+def run_anova_for_icelandic():
+    genotypes_df = load_icelandic_genotypes()
 #    vntr_genotypes = get_vntr_alleles(genotypes)
     expression_file = 'Bjarni/toMehrdad/eMat_cropped'
     expression_file = 'Bjarni/toMehrdad/Blood_VNTR-eQTLs_ENSEMBL87.table'
@@ -889,7 +889,7 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
 
 if __name__ == '__main__':
     # run_anova_for_geuvadis()
-    # run_anova_for_bjarni()
+    # run_anova_for_icelandic()
     # exit(0)
     run_anova()
     print(highest_fs)
