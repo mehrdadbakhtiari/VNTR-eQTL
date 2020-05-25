@@ -32,7 +32,7 @@ Genename  Chromosome  VNTR Coordinate Start   Effect Size (B)   P-value   Standa
 
 For example, `regression_results/Whole-Blood/423956.txt` (result of the association test for VNTR 423956 in Whole Blood) will have the following content:
 ```
-POMC    chr2    25161573        0.21607193665873414     9.109131954009228e-06   0.048056165330533064
+POMC    chr2    25161573        0.21217799507799368     1.1501572764235368e-05  0.047746755235986996
 ```
 
 # Requirements
@@ -41,6 +41,8 @@ POMC    chr2    25161573        0.21607193665873414     9.109131954009228e-06   
 3. [PEER](https://github.com/PMBio/peer): to correct for non genetic factors affecting gene expression level.
 4. Python libraries: [statsmodels](https://www.statsmodels.org/stable/index.html), pandas, numpy <br>
 These can be installed with `pip install pandas numpy statsmodels` using `pip` or with `conda install -c conda-forge statsmodels` using `conda`.
+5. [TRTools](https://github.com/gymreklab/TRTools): for filtering target loci
+6. [CAVIAR](http://genetics.cs.ucla.edu/caviar/): for fine-mapping the causal variant.
 
 # How to run
 ### Preprocessing
@@ -73,10 +75,11 @@ python peer_factor_identification.py Expression_by_Subtissue PEER_results
 ### Running association test
 This step will generate the `regression_results`
 ```
-python run_regression.py
+python run_regression.py VNTR_genotypes/ Expression_by_Subtissue/
 ```
+`VNTR_genotypes` should contain 652 files (one per individual) as outputted by adVNTR for each sample.
 ### Identifying significance threshold (5% FDR)
-Run following script to identify tissue-specific significance thresholds.
+Run following script to read `regression_results` and identify tissue-specific significance thresholds.
 ```
 compute_significance_cutoff.py
 ```
