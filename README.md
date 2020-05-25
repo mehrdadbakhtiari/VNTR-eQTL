@@ -54,13 +54,14 @@ zcat SraRunTable.txt.gz | grep "RNA-Seq" >  Sra_table_RNA-Seq_only
 ```
 python extract_expression_by_tissue.py Sra_table_RNA-Seq_only rpkm_file.gct Expression_by_Subtissue/
 ```
-`Expression_by_Subtissue` will contain `Whole Blood.rpkm`, `Brain - Cortex.rpkm`, etc.
+`Expression_by_Subtissue` will contain `Whole Blood.rpkm`, `Brain - Cortex.rpkm`, etc. This command usually takes an hour to complete.
 
 3. To convert microarray genotypes to plink format and keep common variants to infer population structure, run following:
 ```
 vcftools --gzvcf GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_866Indiv.vcf.gz --recode --maf 0.05 --remove-filtered-all --out filtered_snps
 plink --vcf filtered_snps.vcf --biallelic-only --maf 0.05 --recode --out plink_866Ind_filtered_biallelic_snps_0.05maf
 ```
+Since the vcf files are large, this step may take up to one day depending on the system.
 
 ### Finding population structure
 set `GTEXDIR` to parent directory of GTEx dataset in the `principal_component_identification.sh` scripts and run PCA and store results in `PCA_results` directory:
@@ -72,8 +73,10 @@ Run PEER factor identification scripts for each tissue (`Expression_by_Subtissue
 ```
 python peer_factor_identification.py Expression_by_Subtissue PEER_results
 ```
+This step may take 1-2 days to finish.
+
 ### Running association test
-This step will generate the `regression_results`
+This step will take less than a day to generate the `regression_results`
 ```
 python run_regression.py VNTR_genotypes/ Expression_by_Subtissue/
 ```
