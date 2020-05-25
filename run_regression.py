@@ -2,6 +2,7 @@ import glob
 import os
 import operator
 import pandas as pd
+import sys
 import numpy as np
 import math
 
@@ -10,9 +11,26 @@ from statsmodels.formula.api import ols
 
 from advntr.models import load_unique_vntrs_data
 
-from load_confounders import load_peer_factors, load_population_pcs
+from load_confounders import load_peer_factors, load_population_pcs, load_genders
 from gene_locations import GeneLocations
+from hwe_test import get_loci_in_HWE
 
+VNTR_genotypes_dir = '../gtex_genotypes/'
+genotypes_dir_1kg = '../1kg_advntr_genotype/'
+#VNTR_genotypes_dir = '/pedigree2/projects/adVNTR/gtex_genotypes/'
+wgs_id_gtex_id_file = '../GTEX_sample_id_conversion.txt'
+# vntr_models_dir = '/pedigree2/projects/adVNTR/vntr_data/hg38_selected_VNTRs_Illumina.db'
+vntr_models_dir = '/home/mehrdad/workspace/adVNTR/vntr_data/hg38_selected_VNTRs_Illumina.db.bck'
+
+snp_directory = '../files/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1/'
+original_snp_file = snp_directory + 'plink_866Ind_filtered_biallelic_snps_0.05maf'
+
+rpkm_directory = '../Expression_by_Subtissue/'
+caviar_result_dir = 'caviar_inputs/'
+
+if len(sys.argv) > 2:
+    VNTR_genotypes_dir = sys.argv[1] + '/'
+    rpkm_directory = sys.argv[2] + '/'
 
 low_pvalue_vntrs = {}
 significant_vntrs = {}
@@ -30,38 +48,27 @@ best_caviar_ranks = {}
 min_individuals_in_group = 4
 significance_threshold = 0.0005
 thresholds = {}
-with open('thresholds.txt') as infile:
-    lines = infile.readlines()
-    for l in lines:
-        thresholds[l.split('\t')[0].replace(' ', '-')] = float(l.split('\t')[1])
+try:
+    with open('thresholds.txt') as infile:
+        lines = infile.readlines()
+        for l in lines:
+            thresholds[l.split('\t')[0].replace(' ', '-')] = float(l.split('\t')[1])
+except:
+    # need to rerun after finding thresholds from initial results
+    rpkms = glob.glob(rpkm_directory + '/*')
+    for rpkm in rpkms:
+        thresholds[rpkm.split('.')[0]] = 0.0005
 
 run_permutation_test = False
 bootstrapping = False
 
 highest_fs = 0
 lowest_p = 1e10
-VNTR_genotypes_dir = '../gtex_genotypes/'
-genotypes_dir_1kg = '../1kg_advntr_genotype/'
-#VNTR_genotypes_dir = '/pedigree2/projects/adVNTR/gtex_genotypes/'
-wgs_id_gtex_id_file = '../GTEX_sample_id_conversion.txt'
-# vntr_models_dir = '/pedigree2/projects/adVNTR/vntr_data/hg38_selected_VNTRs_Illumina.db'
-vntr_models_dir = '/home/mehrdad/workspace/adVNTR/vntr_data/hg38_selected_VNTRs_Illumina.db.bck'
-
-snp_directory = '../files/phg000830.v1.GTEx_WGS.genotype-calls-vcf.c1/'
-snp_directory = '../files/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1/'
-snp_file = snp_directory + 'subset'
-snp_file = snp_directory + 'subset_100kb'
-original_snp_file = snp_directory + '652Ind_filtered_biallelic_snps_0.05maf'
-original_snp_file = snp_directory + 'plink_866Ind_filtered_biallelic_snps_0.05maf'
 
 try:
     gene_locations_obj = GeneLocations()
 except:
     pass
-
-rpkm_directory = '../Expression_by_Subtissue/'
-
-caviar_result_dir = 'caviar_inputs/'
 
 if __name__ == '__main__':
     ref_vntrs = load_unique_vntrs_data(vntr_models_dir)
@@ -75,8 +82,11 @@ def get_average(lst):
 
 
 def get_wgs_id_to_individual_id_map():
-    with open(wgs_id_gtex_id_file) as infile:
-        lines = infile.readlines()
+    try:
+        with open(wgs_id_gtex_id_file) as infile:
+            lines = infile.readlines()
+    except:
+        lines = []
     result = {}
     for line in lines:
         line = line.strip().split()
@@ -125,7 +135,10 @@ def load_individual_genotypes(reference_vntrs, average=True, limit=None):
     for genotype_file in genotype_files:
         wgs_id = os.path.basename(genotype_file).split('.')[0]
 #        wgs_id = os.path.basename(genotype_file).split('_')[1]
-        individual_id = wgs_id_to_gtex_id[wgs_id]
+        if wgs_id in wgs_id_to_gtex_id.keys():
+            individual_id = wgs_id_to_gtex_id[wgs_id]
+        else:
+            individual_id = wgs_id
         res[individual_id] = {}
         with open(genotype_file) as infile:
             lines = infile.readlines()
@@ -148,7 +161,11 @@ def load_snp_file(vntr_id):
     snp_file = snp_directory + 'subsets/subset_%s' % vntr_id
     if not os.path.exists(snp_file + '.ped') or not os.path.exists(snp_file + '.map'):
         chromosome = reference_vntrs[vntr_id].chromosome[3:]
-        start, end = gene_locations_obj.get_gene_coordinates(gene_name)
+        try:
+            start, end = gene_locations_obj.get_gene_coordinates(gene_name)
+        except:
+            start = reference_vntrs[vntr_id].start_point
+            end = reference_vntrs[vntr_id].start_point + reference_vntrs[vntr_id].get_length()
         if start is None:
             return {}, []
         start = (start - 50000) / 1000
@@ -293,10 +310,11 @@ def run_anova():
     tissue_names = [pf.split('/')[-1][13:-3] for pf in peer_files]
     print(tissue_names)
 
-    with open('important_vntr_ids.txt') as infile:
-        lines = infile.readlines()
-    important_vntr_ids = set([int(line.strip()) for line in lines if line.strip() != ''])
-    print(important_vntr_ids)
+#    with open('important_vntr_ids.txt') as infile:
+#        lines = infile.readlines()
+#    important_vntr_ids = set([int(line.strip()) for line in lines if line.strip() != ''])
+#    print(important_vntr_ids)
+    eqtl_targets = get_loci_in_HWE(reference_vntrs, load_individual_genotypes(reference_vntrs, False))
 
     computed_tissues = [e[19:] for e in glob.glob('regression_results/*')]
     print computed_tissues
@@ -308,12 +326,14 @@ def run_anova():
             print('skip %s as it has too few individuals' % tissue_name)
             continue
         for vntr_id, number_of_genotypes in vntr_genotypes:
+            if vntr_id not in eqtl_targets:
+                continue
             if reference_vntrs[vntr_id].chromosome[3:] == 'Y':
                 continue
             if number_of_genotypes <= 1:
                 continue
-            if vntr_id not in important_vntr_ids:
-                continue
+#            if vntr_id not in important_vntr_ids:
+#                continue
             if bootstrapping:
                 res = []
                 for k in range(100):
@@ -689,10 +709,22 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
                 pop_row.append(pop_pc_map[individual_id][pop_pcs[i]])
         gene_df.loc[i+start_row] = [pop_pcs[i]] + pop_row
 
+    # add a row for gender
+    start_row = 2 + len(peer_factors) + len(pop_pcs)
+    gender_map = load_genders()
+    gender_row = []
+    for j in range(1, len(gene_df.columns)):
+        individual_id = gene_df.columns[j]
+        if individual_id not in gender_map.keys():
+            gender_row.append(0)
+        else:
+            gender_row.append(0 if gender_map[individual_id] == 'M' else 1)
+    gene_df.loc[start_row] = ['Sex'] + gender_row
+
     temp = gene_df.set_index('Description').transpose()
     # temp: (except SNPs that will be added later)
-    # Description   gene_name   vntr_genotype_title SNP1    SNP2    ... SNPn    Peer1   Peer2   PopPC1  PopPC2
-    # GTEX-QWETY    0.6         2.5                 2       1       ... 1       0.5     0.6     0.4     0.8
+    # Description   gene_name   vntr_genotype_title SNP1    SNP2    ... SNPn    Peer1   Peer2   PopPC1  PopPC2  Sex
+    # GTEX-QWETY    0.6         2.5                 2       1       ... 1       0.5     0.6     0.4     0.8     1
 
     if (np.median(temp[gene_name]) == 0):
         # gene is not expressed
@@ -703,7 +735,7 @@ def run_anova_for_vntr(df, genotypes, vntr_id=527655, tissue_name='Blood Vessel'
     anova_target = 'residuals'
 
     # find residuals
-    confoudners_str = ' + '.join(pop_pcs + peer_factors)
+    confoudners_str = ' + '.join(pop_pcs + peer_factors + ['Sex'])
     confounders_lm = ols('%s ~ %s' % (gene_name, confoudners_str), data=temp).fit()
     temp['residuals'] = confounders_lm.resid
 

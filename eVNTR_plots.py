@@ -12,7 +12,7 @@ import glob
 
 from advntr.models import load_unique_vntrs_data
 
-from run_anova import load_individual_genotypes
+from run_regression import load_individual_genotypes
 
 
 vntr_models_dir = '/home/mehrdad/workspace/adVNTR/vntr_data/hg38_selected_VNTRs_Illumina.db.bck'

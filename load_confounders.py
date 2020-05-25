@@ -40,3 +40,12 @@ def load_population_pcs(population_pc_file='PCA_results/pca.gtex.pca.evec'):
 
     return pop_structure_factors, pcs
 
+def load_genders(gender_file='PCA_results/pca.ind.poplabels'):
+    with open(gender_file) as infile:
+        lines = infile.readlines()
+    genders = {}
+    for i in range(len(lines)):
+        individual, gender, pop = lines[i].strip().split()
+        genders[individual] = gender
+    return genders
+
