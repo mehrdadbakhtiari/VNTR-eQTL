@@ -88,6 +88,12 @@ def plot_expression_genotype_correlation(vntr_id, tissue_name):
     #ax.set_ylim(0)
     plt.tight_layout()
 
+    COLOR = 'black'
+    plt.rcParams['text.color'] = COLOR
+    plt.rcParams['axes.labelcolor'] = COLOR
+    plt.rcParams['xtick.color'] = COLOR
+    plt.rcParams['ytick.color'] = COLOR
+
     plt.gca().spines['bottom'].set_color('black')
     plt.gca().spines['left'].set_color('black')
     plt.gca().spines['top'].set_color('black')
@@ -226,12 +232,19 @@ def plot_variant_caviar_scores(vntr_id, tissue_name, xlim=None):
         ax.set_xlim(xlim[0], xlim[1])
     plt.tight_layout()
 
+    COLOR = 'black'
+    plt.rcParams['text.color'] = COLOR
+    plt.rcParams['axes.labelcolor'] = COLOR
+    plt.rcParams['xtick.color'] = COLOR
+    plt.rcParams['ytick.color'] = COLOR
+
     plt.gca().spines['bottom'].set_color('black')
     plt.gca().spines['left'].set_color('black')
     plt.gca().spines['top'].set_color('black')
     plt.gca().spines['right'].set_color('black')
 
     fig.savefig('caviar_%s_%s.png' % (gene_name, tissue_name), dpi=300)
+#    fig.savefig('caviar_%s_%s.pdf' % (gene_name, tissue_name))
     plt.cla()
     plt.clf()
     plt.close()
@@ -272,12 +285,19 @@ def plot_variant_pvalues(vntr_id, tissue_name):
     plt.tight_layout()
     xlim = plt.xlim()
 
+    COLOR = 'black'
+    plt.rcParams['text.color'] = COLOR
+    plt.rcParams['axes.labelcolor'] = COLOR
+    plt.rcParams['xtick.color'] = COLOR
+    plt.rcParams['ytick.color'] = COLOR
+
     plt.gca().spines['bottom'].set_color('black')
     plt.gca().spines['left'].set_color('black')
     plt.gca().spines['top'].set_color('black')
     plt.gca().spines['right'].set_color('black')
 
     fig.savefig('pvalues_%s_%s.png' % (gene_name, tissue_name), dpi=300)
+    #fig.savefig('pvalues_%s_%s.pdf' % (gene_name, tissue_name))
     plt.cla()
     plt.clf()
     plt.close()
