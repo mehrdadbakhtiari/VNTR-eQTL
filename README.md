@@ -1,5 +1,5 @@
 # VNTR-eQTL
-Scripts for analyzing VNTR-eQTLs in GTEx cohort for the [paper](http://biorxiv.org) (link to be added soon)
+Scripts for analyzing VNTR-eQTLs in GTEx cohort [(link to the paper)]( https://biorxiv.org/cgi/content/short/2020.05.25.114082v1)
 
 # Inputs of the pipeline
 1. VNTR genotypes of the entire GTEx cohort as outputted by [adVNTR](https://github.com/mehrdadbakhtiari/adVNTR) in the default format (one text file for each individual) using WGS data aligned to GRCh38 (available from dbGaP phs000424.v7.p2).
@@ -32,7 +32,7 @@ Genename  Chromosome  VNTR Coordinate Start   Effect Size (B)   P-value   Standa
 
 For example, `regression_results/Whole-Blood/423956.txt` (result of the association test for VNTR 423956 in Whole Blood) will have the following content:
 ```
-POMC    chr2    25161573        0.21607193665873414     9.109131954009228e-06   0.048056165330533064
+POMC    chr2    25161573        0.21217799507799368     1.1501572764235368e-05  0.047746755235986996
 ```
 
 # Requirements
@@ -41,6 +41,8 @@ POMC    chr2    25161573        0.21607193665873414     9.109131954009228e-06   
 3. [PEER](https://github.com/PMBio/peer): to correct for non genetic factors affecting gene expression level.
 4. Python libraries: [statsmodels](https://www.statsmodels.org/stable/index.html), pandas, numpy <br>
 These can be installed with `pip install pandas numpy statsmodels` using `pip` or with `conda install -c conda-forge statsmodels` using `conda`.
+5. [TRTools](https://github.com/gymreklab/TRTools): for filtering target loci
+6. [CAVIAR](http://genetics.cs.ucla.edu/caviar/): for fine-mapping the causal variant.
 
 # How to run
 ### Preprocessing
@@ -52,13 +54,14 @@ zcat SraRunTable.txt.gz | grep "RNA-Seq" >  Sra_table_RNA-Seq_only
 ```
 python extract_expression_by_tissue.py Sra_table_RNA-Seq_only rpkm_file.gct Expression_by_Subtissue/
 ```
-`Expression_by_Subtissue` will contain `Whole Blood.rpkm`, `Brain - Cortex.rpkm`, etc.
+`Expression_by_Subtissue` will contain `Whole Blood.rpkm`, `Brain - Cortex.rpkm`, etc. This command usually takes an hour to complete.
 
 3. To convert microarray genotypes to plink format and keep common variants to infer population structure, run following:
 ```
 vcftools --gzvcf GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_866Indiv.vcf.gz --recode --maf 0.05 --remove-filtered-all --out filtered_snps
 plink --vcf filtered_snps.vcf --biallelic-only --maf 0.05 --recode --out plink_866Ind_filtered_biallelic_snps_0.05maf
 ```
+Since the vcf files are large, this step may take up to one day depending on the system.
 
 ### Finding population structure
 set `GTEXDIR` to parent directory of GTEx dataset in the `principal_component_identification.sh` scripts and run PCA and store results in `PCA_results` directory:
@@ -70,13 +73,16 @@ Run PEER factor identification scripts for each tissue (`Expression_by_Subtissue
 ```
 python peer_factor_identification.py Expression_by_Subtissue PEER_results
 ```
+This step may take 1-2 days to finish.
+
 ### Running association test
-This step will generate the `regression_results`
+This step will take less than a day to generate the `regression_results`
 ```
-python run_regression.py
+python run_regression.py VNTR_genotypes/ Expression_by_Subtissue/
 ```
+`VNTR_genotypes` should contain 652 files (one per individual) as outputted by adVNTR for each sample.
 ### Identifying significance threshold (5% FDR)
-Run following script to identify tissue-specific significance thresholds.
+Run following script to read `regression_results` and identify tissue-specific significance thresholds.
 ```
 compute_significance_cutoff.py
 ```
