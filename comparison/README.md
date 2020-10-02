@@ -2,7 +2,7 @@
 Scripts for evaluating the performance of adVNTR-NN, VNTRseek, and GangSTR with simulated reads.
 
 ## Simulating reads
-We used [ART](niehs.nih.gov/research/resources/software/biostatistics/art/index.cfm) to simulate reads as stated in [Method]([https://doi.org/10.1101/2020.05.25.114082](https://doi.org/10.1101/2020.05.25.114082)) section.
+We used [ART](niehs.nih.gov/research/resources/software/biostatistics/art/index.cfm) to simulate reads as stated in [Method](https://doi.org/10.1101/2020.05.25.114082) section.
 
 ## Inputs
 * Output (genotype calls) of each tool for the simulated tests.
