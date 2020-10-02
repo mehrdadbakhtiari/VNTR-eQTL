@@ -8,7 +8,9 @@ We used [ART](niehs.nih.gov/research/resources/software/biostatistics/art/index.
 * Output (genotype calls) of each tool for the simulated tests.
 
 > **GangSTR** outputs the genotype results along with a VCF file. We used the genotype output to compare the results.
+
 > **VNTRseek** outputs genotypes as a VCF fille. We used the VCF file to compare the results.
+
 > **adVNTR-NN** outputs genotypes by default. We used the genotype output.
 
 ## Output
@@ -21,4 +23,4 @@ We used [ART](niehs.nih.gov/research/resources/software/biostatistics/art/index.
 3. [VNTRseek (v1.10.0)](https://github.com/yzhernand/VNTRseek/)
 4. Reference VNTR Databases for adVNTR can be downloaded from [here](https://cseweb.ucsd.edu/~mbakhtia/adVNTR/).
 Note that we used HG19 reference for VNTRseek but HG38 reference for GangSTR.
-5. To use this script, file name and locations should be changed appropriately.
+5. To use this script, file names and locations should be changed appropriately.

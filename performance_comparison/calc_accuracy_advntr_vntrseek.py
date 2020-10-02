@@ -1,13 +1,15 @@
 # Script for comparison between adVNTR-NN and VNTRseek.
 # Reference VNTRs for adVNTR and VNTRseek are required to run this module.
 # Input: adVNTR genotype result and VNTRseek output and target VNTR files.
-# Output: Accuracy for each heterozygous scenario.
+# Output: Accuracies for each heterozygous scenario.
 
 from advntr.models import *
 from collections import defaultdict
-
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+advntr_db = "/Users/jonghun/git/vntr/adVNTR/vntr_data/hg19_genic_VNTRs.db"
+
 
 class VNTRSeekTarget:
     def __init__(self, repeat_id, first_idx, last_idx, copy_number, chr, left_f, pattern, arrayseq, right_f):
@@ -23,7 +25,7 @@ class VNTRSeekTarget:
 
 
 # Find common VNTRs in DB (hg19)
-def find_common_VNTRs_in_VNTRseek_and_adVNTR(outfile):
+def find_common_VNTRs_in_VNTRseek_and_adVNTR(outfile, advntr_db):
 
     out = open(outfile, "w")
     ignoring_ids = check_same_starting_position_vntrs()
@@ -39,9 +41,8 @@ def find_common_VNTRs_in_VNTRseek_and_adVNTR(outfile):
             db_element = VNTRSeekTarget(repeat_id, first_index, last_index, copy_number, chromosome, left_flanking, pattern, arrayseq, right_flanking)
             vntrseek_reference[repeat_id] = db_element
 
-    db = "/Users/jonghun/git/vntr/adVNTR/vntr_data/hg19_genic_VNTRs.db"
-    # db = "/Users/jonghun/git/vntr/adVNTR/vntr_data/hg19_selected_VNTRs_Illumina.db"
-    reference_vntrs = load_unique_vntrs_data(db_file=db)
+    # advntr_db = "/Users/jonghun/git/vntr/adVNTR/vntr_data/hg19_genic_VNTRs.db"
+    reference_vntrs = load_unique_vntrs_data(db_file=advntr_db)
 
     vntrseek_vntr_ids_in_common = []
     advntr_vntr_ids_in_common = []
@@ -158,9 +159,9 @@ def check_same_starting_position_vntrs():
     return ignoring_ids
 
 
-def write_vntr_ids_in_common_hg19():
+def write_vntr_ids_in_common_hg19(advntr_db):
     outfile = "vntrs_in_common_hg19genic.txt"
-    vntrseek_vntr_ids_in_common, advntr_ids_in_common = find_common_VNTRs_in_VNTRseek_and_adVNTR(outfile)
+    vntrseek_vntr_ids_in_common, advntr_ids_in_common = find_common_VNTRs_in_VNTRseek_and_adVNTR(outfile, advntr_db)
     with open("common_vntr_ids_vntrseek_advntr_hg19genic.txt", "w") as f:
         f.write("VNTRseek IDs\n")
         for id in vntrseek_vntr_ids_in_common:
@@ -260,6 +261,8 @@ def get_targets_for_simulations(advntr_targets):
 
     return advntr_target_list_less
 
+# 1. Find common VNTR IDs form adVNTR and VNTRseek
+write_vntr_ids_in_common_hg19(advntr_db)
 
 # 2. load target VNTR Ids
 vntrseek_targets, advntr_targets = get_target_vntr_ids("common_vntr_ids_vntrseek_advntr_hg19genic.txt")
@@ -279,8 +282,7 @@ with open("vntrseek_advntr_id_map.tsv", "r") as f:
 
 # 4. Crate target VNTRs for simulation tests (Only difference with the running time comparison is the total length)
 # Since both tools are using short-reads for the accuracy comparison, we filter out VNTRs having > 140 bp
-db = "/Users/jonghun/git/vntr/adVNTR/vntr_data/hg19_genic_VNTRs.db"
-reference_vntrs = load_unique_vntrs_data(db_file=db)
+reference_vntrs = load_unique_vntrs_data(db_file=advntr_db)
 ref_vntr_dict = dict()
 for ref_vntr in reference_vntrs:
     ref_vntr_dict[ref_vntr.id] = ref_vntr

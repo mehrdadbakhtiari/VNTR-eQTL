@@ -6,6 +6,8 @@
 from advntr import models
 from collections import defaultdict
 
+advntr_db = '/home/jonghun/advntr_vcf/adVNTR/vntr_data/hg38_selected_VNTRs_Illumina.db'
+
 ####################################################################
 # Get similar VNTR IDs for filtering
 similar_vntrs_hg38 = set()
@@ -14,8 +16,7 @@ with open("similar_vntrs_hg38_maxlen1000.txt", "r") as f:
         similar_vntrs_hg38.add(int(line))
 
 # Read genotype results for those and the target VNTRs
-db = '/home/jonghun/advntr_vcf/adVNTR/vntr_data/hg38_selected_VNTRs_Illumina.db'
-reference_vntrs = models.load_unique_vntrs_data(db)
+reference_vntrs = models.load_unique_vntrs_data(advntr_db)
 ref_vntrs = {ref_vntr.id: ref_vntr for ref_vntr in reference_vntrs}
 target_vntrs = [ref_vntr for ref_vntr in reference_vntrs if 6 <= len(ref_vntr.pattern) <= 20 and ref_vntr.id not in similar_vntrs_hg38]
 target_vids = set([ref_vntr.id for ref_vntr in target_vntrs])
