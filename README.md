@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/188502128.svg)](https://zenodo.org/badge/latestdoi/188502128)
+
 # VNTR-eQTL
 Scripts for analyzing VNTR-eQTLs in GTEx cohort [(link to the paper)]( https://biorxiv.org/cgi/content/short/2020.05.25.114082v1)
 and [genotyping performance comparisons](https://github.com/mehrdadbakhtiari/VNTR-eQTL/tree/master/performance_comparison)
